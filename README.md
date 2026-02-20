@@ -1,6 +1,6 @@
 # levgorev.com — Poetry Site
 
-Personal poetry site for Lev Gorev. Built with **FastAPI** backend, **Vanilla JS** SPA frontend, **SQLite** database, served via **Nginx**, deployed with **Docker Compose**.
+Personal poetry site for Lev Gorev. Built with **FastAPI** backend, **Vanilla JS** SPA frontend, **PostgreSQL** database, served via **Nginx**, deployed with **Docker Compose**.
 
 ---
 
@@ -10,12 +10,13 @@ Personal poetry site for Lev Gorev. Built with **FastAPI** backend, **Vanilla JS
 poetry-site/
 ├── backend/
 │   ├── main.py              # FastAPI app entry point
-│   ├── database.py          # SQLite setup & migrations
+│   ├── database.py          # PostgreSQL setup & session management
+│   ├── models.py            # SQLAlchemy ORM models
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── routers/
 │       ├── auth.py          # JWT login, password change
-│       ├── poems.py         # CRUD + tags
+│       ├── poems.py         # CRUD + tags + export/import
 │       ├── about.py         # About page content
 │       └── comments.py      # Guest comments
 ├── frontend/
@@ -135,11 +136,17 @@ Add this to your crontab (`crontab -e`) to reload nginx when cert renews:
 2. Log in with your credentials from `.env`
 3. Click **Admin** in the nav
 
-**Poems tab:** Add, edit, delete poems. Each poem has title (optional), body, and tags.
+**Poems tab:** 
+- Add, edit, delete poems. Each poem has title (optional), body, and tags.
+- **Export Poems** (📥): Download all poems as JSON for backup or migration
+- **Import Poems** (📤): Upload JSON file to bulk-import poems
+- **Export Comments** (💬): Download all comments with poem info as JSON
 
 **About Page tab:** Edit your name, bio text, and photo URL.
 
 **Password tab:** Change your admin password.
+
+> See [EXPORT_IMPORT_GUIDE.md](documentation/EXPORT_IMPORT_GUIDE.md) for detailed export/import usage.
 
 ---
 
@@ -158,6 +165,9 @@ All admin endpoints require `Authorization: Bearer <token>` header.
 | POST | `/api/poems` | ✓ | Create poem |
 | PUT | `/api/poems/{id}` | ✓ | Update poem |
 | DELETE | `/api/poems/{id}` | ✓ | Delete poem |
+| GET | `/api/poems/export/all` | ✓ | Export all poems as JSON |
+| POST | `/api/poems/import/all` | ✓ | Import poems from JSON |
+| GET | `/api/poems/export/comments` | ✓ | Export all comments as JSON |
 | GET | `/api/about` | — | Get about content |
 | PUT | `/api/about` | ✓ | Update about content |
 | GET | `/api/comments/{poem_id}` | — | Get comments for poem |
@@ -170,24 +180,51 @@ Interactive docs available at `/api/docs` (development only).
 
 ## Backup
 
-Database is a single SQLite file. Back it up with:
+### Option 1: Export via Admin Panel (Recommended)
+Use the built-in export feature in the admin panel:
+- Click "📥 Export Poems" to download all poems as JSON
+- Click "💬 Export Comments" to download all comments as JSON
+
+This creates portable backup files that can be imported into any instance.
+
+### Option 2: PostgreSQL Database Backup
+Back up the entire database:
 
 ```bash
-docker compose exec backend sqlite3 /data/poetry.db .dump > backup_$(date +%Y%m%d).sql
+# Dump database to SQL file
+docker compose exec postgres pg_dump -U poetry_user poetry_db > backup_$(date +%Y%m%d).sql
+
+# Or backup using pg_dumpall for complete backup
+docker compose exec postgres pg_dumpall -U poetry_user > backup_full_$(date +%Y%m%d).sql
 ```
 
-Or copy the volume directly:
+Restore from backup:
 ```bash
-docker cp $(docker compose ps -q backend):/data/poetry.db ./backup.db
+docker compose exec -T postgres psql -U poetry_user poetry_db < backup_20260221.sql
+```
+
+### Option 3: Volume Backup
+Copy the PostgreSQL data volume:
+```bash
+docker run --rm -v poetry-site_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_backup.tar.gz /data
 ```
 
 ---
 
-## Upgrading to PostgreSQL (later)
+## Migration
 
-When the site grows, swap SQLite for PostgreSQL by:
-1. Adding a `postgres` service to `docker-compose.yml`
-2. Replacing `sqlite3` with `psycopg2` + `asyncpg` in `database.py`
-3. Migrating data with `pg_restore`
+To migrate between instances:
+1. Export poems and comments from old instance (Admin Panel)
+2. Set up new instance with Docker Compose
+3. Import poems using "📤 Import Poems" button
+4. Comments are tied to poem IDs, so coordinate timing or manually adjust
 
-The SQL schema is standard and fully compatible.
+---
+
+## Upgrading to PostgreSQL
+
+✅ **Already using PostgreSQL!** The site uses:
+- PostgreSQL 16 Alpine
+- SQLAlchemy ORM with asyncpg driver
+- Connection pooling (20 base connections, 40 max overflow)
+- Automatic connection recycling

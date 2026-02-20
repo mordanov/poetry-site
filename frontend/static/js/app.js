@@ -46,6 +46,9 @@ const I18N = {
     'admin.tabs.about': 'About Page',
     'admin.tabs.password': 'Password',
     'admin.newPoem': '+ New Poem',
+    'admin.exportPoems': '📥 Export Poems',
+    'admin.importPoems': '📤 Import Poems',
+    'admin.exportComments': '💬 Export Comments',
     'admin.none': 'No poems yet.',
     'admin.edit': 'Edit',
     'admin.delete': 'Delete',
@@ -126,6 +129,9 @@ const I18N = {
     'admin.tabs.about': 'Страница "Об авторе"',
     'admin.tabs.password': 'Пароль',
     'admin.newPoem': '+ Новый стих',
+    'admin.exportPoems': '📥 Экспорт стихов',
+    'admin.importPoems': '📤 Импорт стихов',
+    'admin.exportComments': '💬 Экспорт комментариев',
     'admin.none': 'Пока нет стихов.',
     'admin.edit': 'Редактировать',
     'admin.delete': 'Удалить',
@@ -586,6 +592,87 @@ async function deletePoem(id) {
     }
   } catch(e) { toast(t('admin.deleteError'), true); }
 }
+
+// Export poems to JSON
+async function exportPoems() {
+  try {
+    const data = await apiFetch('/poems/export/all');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `poems-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast(`Exported ${data.total} poems`);
+  } catch(e) {
+    toast('Export failed', true);
+    console.error(e);
+  }
+}
+
+// Export comments to JSON
+async function exportComments() {
+  try {
+    const data = await apiFetch('/poems/export/comments');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `comments-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast(`Exported ${data.total} comments`);
+  } catch(e) {
+    toast('Export failed', true);
+    console.error(e);
+  }
+}
+
+// Show import dialog
+function showImportPoems() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (!data.poems || !Array.isArray(data.poems)) {
+        toast('Invalid file format: expected {poems: [...]}', true);
+        return;
+      }
+
+      if (!confirm(`Import ${data.poems.length} poems? This will add them to your collection.`)) {
+        return;
+      }
+
+      const result = await apiFetch('/poems/import/all', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+
+      toast(`Imported ${result.imported} of ${result.total_attempted} poems`);
+      if (result.errors.length > 0) {
+        console.warn('Import errors:', result.errors);
+      }
+      loadAdminPoems();
+    } catch(e) {
+      toast('Import failed: ' + e.message, true);
+      console.error(e);
+    }
+  };
+  input.click();
+}
+
 
 // About form
 async function loadAboutForm() {
