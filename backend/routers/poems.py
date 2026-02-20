@@ -158,7 +158,7 @@ def delete_poem(poem_id: int, admin: Admin = Depends(get_current_admin), db: Ses
     db.commit()
 
 
-@router.get("/export/all")
+@router.get("/export/poems")
 def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Export all poems with tags to JSON format (admin only)"""
     poems = db.query(Poem).order_by(Poem.created_at).all()
@@ -180,7 +180,7 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
     }
 
 
-@router.post("/import/all")
+@router.post("/import/poems")
 def import_poems(data: dict, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Import poems from JSON format (admin only)
 
@@ -265,7 +265,70 @@ def export_comments(admin: Admin = Depends(get_current_admin), db: Session = Dep
 
     return {
         "comments": result,
-        "total": len(result)
+        "total": len(result),
+        "exported_at": datetime.now().isoformat()
+    }
+
+
+@router.post("/import/comments")
+def import_comments(data: dict, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Import comments from JSON format (admin only)
+
+    Expected format:
+    {
+        "comments": [
+            {
+                "author": "Name",
+                "body": "Comment text",
+                "poem_id": 1
+            }
+        ]
+    }
+    """
+    if "comments" not in data or not isinstance(data["comments"], list):
+        raise HTTPException(400, "Invalid format: 'comments' array is required")
+
+    imported_count = 0
+    errors = []
+
+    for idx, comment_data in enumerate(data["comments"]):
+        try:
+            if "body" not in comment_data:
+                errors.append(f"Comment #{idx + 1}: missing 'body' field")
+                continue
+
+            if "poem_id" not in comment_data:
+                errors.append(f"Comment #{idx + 1}: missing 'poem_id' field")
+                continue
+
+            # Verify poem exists
+            poem = db.query(Poem).filter(Poem.id == comment_data["poem_id"]).first()
+            if not poem:
+                errors.append(f"Comment #{idx + 1}: poem_id {comment_data['poem_id']} not found")
+                continue
+
+            comment = Comment(
+                author=comment_data.get("author", "Anonymous"),
+                body=comment_data["body"],
+                poem_id=comment_data["poem_id"]
+            )
+
+            db.add(comment)
+            imported_count += 1
+
+        except Exception as e:
+            errors.append(f"Comment #{idx + 1}: {str(e)}")
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to save comments: {str(e)}")
+
+    return {
+        "imported": imported_count,
+        "errors": errors,
+        "total_attempted": len(data["comments"])
     }
 
 
