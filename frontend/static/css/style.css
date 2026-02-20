@@ -1,0 +1,541 @@
+:root {
+  --ink: #1a1612;
+  --parchment: #f5f0e8;
+  --cream: #faf7f2;
+  --gold: #b8902a;
+  --gold-light: #d4b45a;
+  --rust: #8b3a2a;
+  --muted: #7a6f62;
+  --border: #ddd5c4;
+  --shadow: rgba(26,22,18,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  background: var(--cream);
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* GRAIN OVERLAY */
+.grain {
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px;
+}
+
+/* NAV */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; gap: 2rem;
+  padding: 1.2rem 2.5rem;
+  background: rgba(250,247,242,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: 'IM Fell English', serif;
+  font-size: 1.3rem; letter-spacing: 0.15em;
+  color: var(--ink); text-decoration: none;
+  margin-right: auto;
+}
+
+.nav-links {
+  list-style: none; display: flex; gap: 2rem;
+}
+
+.nav-links a {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); text-decoration: none;
+  transition: color .2s;
+}
+.nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+t.nav-right {
+  display: flex; align-items: center; gap: 1rem;
+}
+
+.btn-ghost {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.7rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+  transition: color .2s;
+}
+.btn-ghost:hover { color: var(--gold); }
+
+.lang-switch {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 2px;
+}
+
+.lang-btn {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  background: transparent; border: 0; color: var(--muted);
+  padding: 4px 8px; border-radius: 999px;
+  cursor: pointer; transition: color .2s, background .2s;
+}
+
+.lang-btn:hover { color: var(--gold); }
+.lang-btn.active {
+  background: var(--ink); color: var(--cream);
+}
+
+/* PAGES */
+#app { padding-top: 65px; }
+.page { display: none; min-height: 100vh; animation: fadeIn .4s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* HERO */
+.hero {
+  min-height: 90vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 4rem 2rem;
+  position: relative;
+  background: 
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(184,144,42,0.06) 0%, transparent 70%),
+    var(--cream);
+}
+
+.hero::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.hero-ornament {
+  font-size: 1.4rem; color: var(--gold); margin-bottom: 2.5rem;
+  opacity: .6; animation: pulse 3s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{ opacity:.4; transform:scale(1); } 50%{ opacity:.8; transform:scale(1.1); } }
+
+.hero-title {
+  font-family: 'IM Fell English', serif;
+  font-size: clamp(3.5rem, 9vw, 8rem);
+  font-weight: 400; line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 1.5rem;
+}
+.hero-title em { font-style: italic; color: var(--gold); }
+
+.hero-sub {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.78rem; font-weight: 300;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 3rem;
+}
+
+.hero-cta {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.78rem; font-weight: 500;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--gold); text-decoration: none;
+  border-bottom: 1px solid var(--gold);
+  padding-bottom: 2px;
+  transition: color .2s, border-color .2s;
+}
+.hero-cta:hover { color: var(--rust); border-color: var(--rust); }
+
+/* LATEST SECTION */
+.latest-section {
+  max-width: 1100px; margin: 0 auto; padding: 4rem 2rem 6rem;
+}
+
+.section-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.25em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 2.5rem;
+  display: flex; align-items: center; gap: 1rem;
+}
+.section-title::before, .section-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.poems-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* POEM CARD */
+.poem-card {
+  background: var(--parchment);
+  border: 1px solid var(--border);
+  padding: 1.8rem;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+  position: relative;
+  overflow: hidden;
+}
+.poem-card::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 60%, rgba(184,144,42,0.04));
+}
+.poem-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px var(--shadow);
+  border-color: var(--gold-light);
+}
+
+.poem-card-title {
+  font-family: 'IM Fell English', serif;
+  font-size: 1.3rem; font-weight: 400;
+  margin-bottom: .5rem; line-height: 1.3;
+}
+.poem-card-title.untitled { font-style: italic; color: var(--muted); }
+
+.poem-card-preview {
+  font-size: 0.95rem; line-height: 1.7;
+  color: var(--muted); font-style: italic;
+  white-space: pre-line;
+  display: -webkit-box; -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.poem-card-meta {
+  margin-top: 1rem; display: flex; align-items: center;
+  gap: .5rem; flex-wrap: wrap;
+}
+
+.tag {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.6rem; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: rgba(184,144,42,0.1);
+  color: var(--gold); border: 1px solid rgba(184,144,42,0.25);
+  padding: 2px 8px; border-radius: 2px;
+  cursor: pointer; transition: background .2s;
+}
+.tag:hover, .tag.active { background: var(--gold); color: var(--cream); }
+
+.poem-date {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem; color: var(--muted);
+  margin-left: auto;
+}
+
+/* POEMS PAGE */
+.page-header {
+  max-width: 900px; margin: 0 auto;
+  padding: 4rem 2rem 2rem;
+}
+.page-header h1 {
+  font-family: 'IM Fell English', serif;
+  font-size: 3rem; font-weight: 400;
+  margin-bottom: 1.5rem;
+}
+
+.tags-bar { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.tag-filter {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.65rem; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 12px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; color: var(--muted);
+  transition: all .2s; border-radius: 2px;
+}
+.tag-filter:hover { border-color: var(--gold); color: var(--gold); }
+.tag-filter.active { background: var(--gold); color: var(--cream); border-color: var(--gold); }
+
+.poems-list {
+  max-width: 900px; margin: 0 auto;
+  padding: 0 2rem 6rem;
+}
+
+.poem-row {
+  border-top: 1px solid var(--border);
+  padding: 2rem 0;
+  cursor: pointer;
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 1rem; align-items: start;
+  transition: color .2s;
+}
+.poem-row:hover .poem-row-title { color: var(--gold); }
+
+.poem-row-title {
+  font-family: 'IM Fell English', serif;
+  font-size: 1.6rem; font-weight: 400;
+  transition: color .2s;
+}
+.poem-row-title.untitled { font-style: italic; }
+
+.poem-row-preview {
+  font-size: 0.9rem; color: var(--muted); font-style: italic;
+  line-height: 1.7; white-space: pre-line;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+  margin-top: .3rem;
+}
+.poem-row-right { text-align: right; }
+.poem-row-tags { display: flex; flex-wrap: wrap; gap: .3rem; justify-content: flex-end; }
+.poem-row-date { font-family:'Montserrat',sans-serif; font-size:.62rem; color:var(--muted); margin-top:.5rem; }
+
+/* SINGLE POEM */
+.poem-detail {
+  max-width: 680px; margin: 0 auto;
+  padding: 5rem 2rem 6rem;
+}
+
+.poem-back {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+  display: inline-flex; align-items: center; gap: .4rem;
+  margin-bottom: 3rem;
+  transition: color .2s;
+}
+.poem-back:hover { color: var(--gold); }
+
+.poem-full-title {
+  font-family: 'IM Fell English', serif;
+  font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 400;
+  line-height: 1.2; margin-bottom: 1.5rem;
+}
+
+.poem-full-meta {
+  display: flex; align-items: center; gap: .7rem;
+  flex-wrap: wrap; margin-bottom: 3rem;
+  padding-bottom: 2rem; border-bottom: 1px solid var(--border);
+}
+
+.poem-body {
+  font-size: 1.2rem; line-height: 2;
+  white-space: pre-wrap; font-style: italic;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+
+.poem-admin-actions {
+  display: flex; gap: 1rem; margin-top: 3rem;
+  padding-top: 2rem; border-top: 1px solid var(--border);
+}
+
+/* COMMENTS */
+.comments-section {
+  margin-top: 4rem; padding-top: 3rem;
+  border-top: 1px solid var(--border);
+}
+.comments-section h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 2rem;
+}
+
+.comment {
+  padding: 1.2rem 0; border-bottom: 1px solid rgba(221,213,196,0.5);
+  position: relative;
+}
+.comment-author {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.7rem; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: .4rem;
+}
+.comment-body { font-size: 1rem; line-height: 1.7; color: var(--ink); }
+.comment-date { font-family:'Montserrat',sans-serif; font-size:.6rem; color:var(--muted); margin-top:.3rem; }
+.comment-delete {
+  position: absolute; right: 0; top: 1.2rem;
+  font-size: 0.7rem; color: var(--muted); cursor: pointer;
+  transition: color .2s;
+}
+.comment-delete:hover { color: var(--rust); }
+
+.comment-form { margin-top: 2rem; }
+.comment-form input, .comment-form textarea {
+  display: block; width: 100%;
+  font-family: 'Cormorant Garamond', serif; font-size: 1rem;
+  background: var(--parchment); border: 1px solid var(--border);
+  padding: .7rem 1rem; margin-bottom: .8rem;
+  color: var(--ink); outline: none;
+  transition: border-color .2s;
+}
+.comment-form input:focus, .comment-form textarea:focus { border-color: var(--gold); }
+
+/* ABOUT */
+.about-content {
+  max-width: 800px; margin: 0 auto;
+  padding: 5rem 2rem 6rem;
+}
+.about-photo {
+  width: 160px; height: 160px;
+  border-radius: 50%; object-fit: cover;
+  border: 3px solid var(--border);
+  float: right; margin: 0 0 2rem 3rem;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+.about-name {
+  font-family: 'IM Fell English', serif;
+  font-size: 3rem; font-weight: 400; margin-bottom: 1rem;
+}
+.about-bio {
+  font-size: 1.15rem; line-height: 1.9;
+  color: var(--ink); white-space: pre-wrap;
+}
+.about-edit-btn { margin-top: 2rem; }
+
+/* ADMIN */
+.admin-wrap {
+  max-width: 900px; margin: 0 auto;
+  padding: 4rem 2rem 6rem;
+}
+.admin-wrap h1 {
+  font-family: 'IM Fell English', serif;
+  font-size: 2.5rem; margin-bottom: 2rem;
+}
+
+.admin-tabs { display: flex; gap: .5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+.tab {
+  font-family: 'Montserrat', sans-serif; font-size: .7rem;
+  font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+  padding: .5rem 1.2rem; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; color: var(--muted);
+  transition: all .2s;
+}
+.tab.active, .tab:hover { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+
+.admin-panel label {
+  display: block; margin-bottom: 1.2rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: .7rem; font-weight: 500; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+}
+.admin-panel label input,
+.admin-panel label textarea {
+  display: block; width: 100%; margin-top: .4rem;
+  font-family: 'Cormorant Garamond', serif; font-size: 1rem;
+  background: var(--parchment); border: 1px solid var(--border);
+  padding: .7rem 1rem; color: var(--ink); outline: none;
+  transition: border-color .2s;
+}
+.admin-panel label input:focus,
+.admin-panel label textarea:focus { border-color: var(--gold); }
+
+.admin-poem-item {
+  background: var(--parchment); border: 1px solid var(--border);
+  padding: 1.2rem 1.5rem; margin-bottom: .8rem;
+  display: flex; align-items: center; gap: 1rem;
+}
+.admin-poem-item-title {
+  font-family: 'IM Fell English', serif; font-size: 1.2rem; flex: 1;
+}
+.admin-poem-item-tags { display:flex; gap:.3rem; flex-wrap:wrap; }
+.admin-poem-item-actions { display: flex; gap: .5rem; margin-left: auto; }
+
+/* POEM FORM */
+.poem-form { background: var(--parchment); border: 1px solid var(--border); padding: 2rem; margin: 1rem 0 2rem; }
+.poem-form label {
+  display: block; margin-bottom: 1.2rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: .7rem; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.poem-form label input,
+.poem-form label textarea {
+  display: block; width: 100%; margin-top: .4rem;
+  font-family: 'Cormorant Garamond', serif; font-size: 1rem;
+  background: white; border: 1px solid var(--border);
+  padding: .7rem 1rem; color: var(--ink); outline: none;
+  transition: border-color .2s;
+}
+.poem-form label input:focus,
+.poem-form label textarea:focus { border-color: var(--gold); }
+.poem-form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+
+/* BUTTONS */
+.btn-primary {
+  font-family: 'Montserrat', sans-serif; font-size: .72rem;
+  font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+  background: var(--ink); color: var(--cream);
+  border: 1px solid var(--ink); padding: .6rem 1.5rem;
+  cursor: pointer; transition: background .2s, color .2s;
+}
+.btn-primary:hover { background: var(--gold); border-color: var(--gold); color: var(--cream); }
+
+.btn-secondary {
+  font-family: 'Montserrat', sans-serif; font-size: .72rem;
+  font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); padding: .6rem 1.5rem;
+  cursor: pointer; transition: all .2s;
+}
+.btn-secondary:hover { border-color: var(--muted); color: var(--ink); }
+
+.btn-danger {
+  font-family: 'Montserrat', sans-serif; font-size: .72rem;
+  font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); padding: .5rem 1rem;
+  cursor: pointer; transition: all .2s;
+}
+.btn-danger:hover { background: var(--rust); color: white; border-color: var(--rust); }
+
+/* MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(26,22,18,0.5); backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: block; }
+.modal {
+  display: none; position: fixed; z-index: 300;
+  top: 50%; left: 50%; transform: translate(-50%, -60%);
+  background: var(--cream); border: 1px solid var(--border);
+  padding: 2.5rem; width: 100%; max-width: 400px;
+  box-shadow: 0 20px 60px rgba(26,22,18,0.2);
+  transition: transform .3s;
+}
+.modal.open { display: block; transform: translate(-50%, -50%); }
+.modal h2 { font-family:'IM Fell English',serif; font-size:1.8rem; margin-bottom:1.5rem; }
+.modal label {
+  display: block; margin-bottom: 1rem;
+  font-family:'Montserrat',sans-serif; font-size:.68rem;
+  font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+}
+.modal label input {
+  display:block; width:100%; margin-top:.4rem;
+  font-family:'Cormorant Garamond',serif; font-size:1rem;
+  background:var(--parchment); border:1px solid var(--border);
+  padding:.7rem 1rem; color:var(--ink); outline:none;
+  transition:border-color .2s;
+}
+.modal label input:focus { border-color:var(--gold); }
+.modal .btn-primary { width:100%; margin-top:1rem; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+  background: var(--ink); color: var(--cream);
+  padding: .8rem 1.5rem;
+  font-family:'Montserrat',sans-serif; font-size:.72rem;
+  letter-spacing:.1em; text-transform:uppercase;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity .3s, transform .3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+.error-msg { color: var(--rust); font-size:.85rem; margin-bottom:.5rem; min-height:1rem; }
+
+/* RESPONSIVE */
+@media (max-width: 640px) {
+  .nav { padding: 1rem 1.2rem; gap: 1rem; }
+  .nav-links { gap: 1rem; }
+  .hero-title { font-size: 3rem; }
+  .poem-detail, .about-content, .admin-wrap { padding: 3rem 1.2rem 4rem; }
+  .about-photo { float: none; margin: 0 0 1.5rem; }
+  .admin-poem-item { flex-direction: column; align-items: flex-start; }
+}
