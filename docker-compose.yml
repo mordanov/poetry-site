@@ -1,39 +1,16 @@
 version: '3.9'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${DB_NAME:-poetry_db}
-      POSTGRES_USER: ${DB_USER:-poetry_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-poetry_password}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    expose:
-      - "5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-poetry_user} -d ${DB_NAME:-poetry_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build: ./backend
     restart: unless-stopped
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-poetry_db}
-      - DB_USER=${DB_USER:-poetry_user}
-      - DB_PASSWORD=${DB_PASSWORD:-poetry_password}
       - SECRET_KEY=${SECRET_KEY:-change-this-secret-in-production}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme123}
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - DB_PATH=/app/data/poetry.db
+    volumes:
+      - backend_data:/app/data
     expose:
       - "8000"
 
@@ -62,6 +39,6 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
-  postgres_data:
+  backend_data:
   certbot_certs:
   certbot_www:

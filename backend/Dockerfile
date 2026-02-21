@@ -7,9 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /data
+RUN mkdir -p /app/data
 
-ENV DB_PATH=/data/poetry.db
+ENV DB_PATH=/app/data/poetry.db
 
 EXPOSE 8000
 

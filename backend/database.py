@@ -1,10 +1,10 @@
 """
 Database configuration and session management for Poetry Site
-Uses SQLAlchemy ORM with PostgreSQL
+Uses SQLAlchemy ORM with SQLite
 """
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from dotenv import load_dotenv
 import bcrypt
@@ -14,24 +14,34 @@ from models import Base, Admin, About
 load_dotenv()
 
 # Database configuration
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "poetry_db")
-DB_USER = os.getenv("DB_USER", "poetry_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "poetry_password")
+DB_PATH = os.getenv("DB_PATH", "/app/data/poetry.db")
 
-# Build database URL
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Ensure data directory exists
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-# Create engine with connection pooling
+# Build SQLite database URL
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+
+# Create engine with SQLite optimizations
 engine = create_engine(
     DATABASE_URL,
     echo=False,  # Set to True for SQL logging
-    pool_size=20,
-    max_overflow=40,
-    pool_recycle=3600,  # Recycle connections after 1 hour
-    pool_pre_ping=True,  # Verify connections before using
+    connect_args={"check_same_thread": False},
+    pool_pre_ping=True,
 )
+
+# Enable SQLite performance optimizations
+def _fk_pragma_on_connect(dbapi_conn, connection_record):
+    """Enable foreign keys and optimize SQLite on connection"""
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for better concurrency
+    cursor.execute("PRAGMA synchronous=NORMAL")  # Balance between safety and speed
+    cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache
+    cursor.execute("PRAGMA temp_store=MEMORY")  # Use memory for temp tables
+    cursor.close()
+
+event.listen(engine, "connect", _fk_pragma_on_connect)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
