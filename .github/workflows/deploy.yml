@@ -35,10 +35,10 @@ jobs:
           
           cd ~/poetry
           
-          # Clone or pull repository using SSH
+          # Clone or pull repository using GitHub token
           if [ ! -d .git ]; then
             echo "📥 Cloning repository..."
-            git clone git@github.com:${{ github.repository }}.git .
+            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git .
           else
             echo "🔄 Pulling latest changes..."
             git pull origin main
