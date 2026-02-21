@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+import os
 import uvicorn
 
 from database import init_db
@@ -13,6 +15,9 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Poetry Site API", lifespan=lifespan)
+
+uploads_dir = os.getenv("UPLOADS_DIR", "/app/data/uploads/poems")
+app.mount("/uploads", StaticFiles(directory=os.path.dirname(uploads_dir)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

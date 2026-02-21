@@ -61,6 +61,12 @@ const I18N = {
     'admin.form.bodyPlaceholder': 'Write your poem…',
     'admin.form.tagsLabel': 'Tags (comma-separated)',
     'admin.form.tagsPlaceholder': 'love, nature, grief',
+    'admin.form.imageLabel': 'Image (JPG/PNG, max 1MB)',
+    'admin.form.imageRemove': 'Remove image',
+    'admin.form.imageTypeError': 'Only JPG and PNG are allowed',
+    'admin.form.imageTooLarge': 'Image is too large (max 1MB)',
+    'admin.form.imageUploadError': 'Image upload failed',
+    'admin.form.imageDeleteError': 'Image delete failed',
     'admin.form.save': 'Save changes',
     'admin.form.publish': 'Publish',
     'admin.form.cancel': 'Cancel',
@@ -145,6 +151,12 @@ const I18N = {
     'admin.form.bodyPlaceholder': 'Напишите стих…',
     'admin.form.tagsLabel': 'Теги (через запятую)',
     'admin.form.tagsPlaceholder': 'любовь, природа, печаль',
+    'admin.form.imageLabel': 'Картинка (JPG/PNG, до 1MB)',
+    'admin.form.imageRemove': 'Удалить картинку',
+    'admin.form.imageTypeError': 'Допустимы только JPG и PNG',
+    'admin.form.imageTooLarge': 'Картинка слишком большая (макс. 1MB)',
+    'admin.form.imageUploadError': 'Ошибка загрузки картинки',
+    'admin.form.imageDeleteError': 'Ошибка удаления картинки',
     'admin.form.save': 'Сохранить',
     'admin.form.publish': 'Опубликовать',
     'admin.form.cancel': 'Отмена',
@@ -369,7 +381,7 @@ async function loadPoems(tag = null) {
       return;
     }
     list.innerHTML = poems.map(p => `
-      <div class="poem-row" onclick="navigate('poem', true, ${p.id})">
+      <div class="poem-row" onclick="navigate('poem', true, '${esc(p.uuid)}')">
         <div>
           <div class="poem-row-title ${!p.title ? 'untitled' : ''}">${p.title || t('poems.untitled')}</div>
           <div class="poem-row-preview">${esc(p.body.slice(0, 120))}</div>
@@ -384,14 +396,12 @@ async function loadPoems(tag = null) {
 }
 
 // ─── SINGLE POEM ──────────────────────────────────────────────────────────────
-async function loadPoem(id) {
+async function loadPoem(uuid) {
   const container = document.getElementById('poem-detail');
   container.innerHTML = `<p style="padding:4rem 0;color:var(--muted);font-style:italic">${t('poems.loading')}</p>`;
   try {
-    const [poem, comments] = await Promise.all([
-      apiFetch(`/poems/${id}`),
-      apiFetch(`/comments/${id}`)
-    ]);
+    const poem = await apiFetch(`/poems/uuid/${uuid}`);
+    const comments = await apiFetch(`/comments/${poem.id}`);
 
     const adminActions = token ? `
       <div class="poem-admin-actions">
@@ -399,15 +409,26 @@ async function loadPoem(id) {
         <button class="btn-danger" onclick="deletePoem(${poem.id})">${t('admin.delete')}</button>
       </div>` : '';
 
+    const imageBlock = poem.image_url
+      ? `<img class="poem-image" src="${esc(poem.image_url)}" alt="${esc(poem.title || t('poems.untitled'))}">`
+      : '';
+
+    const layoutClass = poem.image_url ? 'poem-layout' : 'poem-layout no-image';
+
     container.innerHTML = `
       <div class="poem-back" onclick="navigate('poems')">${t('poems.back')}</div>
-      <h1 class="poem-full-title ${!poem.title ? 'untitled' : ''}">${poem.title || t('poems.untitled')}</h1>
-      <div class="poem-full-meta">
-        ${poem.tags.map(tg => `<span class="tag" onclick="navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}'),50)">${esc(tg)}</span>`).join('')}
-        <span class="poem-date">${fmtDate(poem.created_at)}</span>
+      <div class="${layoutClass}">
+        ${imageBlock}
+        <div class="poem-text">
+          <h1 class="poem-full-title ${!poem.title ? 'untitled' : ''}">${poem.title || t('poems.untitled')}</h1>
+          <div class="poem-full-meta">
+            ${poem.tags.map(tg => `<span class="tag" onclick="navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}'),50)">${esc(tg)}</span>`).join('')}
+            <span class="poem-date">${fmtDate(poem.created_at)}</span>
+          </div>
+          <div class="poem-body">${esc(poem.body)}</div>
+          ${adminActions}
+        </div>
       </div>
-      <div class="poem-body">${esc(poem.body)}</div>
-      ${adminActions}
       <div class="comments-section">
         <h3>${t('comments.title', { count: comments.length })}</h3>
         <div id="comments-list">${renderComments(comments, poem.id)}</div>
@@ -517,6 +538,12 @@ async function loadAdminPoems() {
 function showPoemForm(poem = null) {
   editingPoemId = poem ? poem.id : null;
   const form = document.getElementById('admin-poem-form');
+  const imagePreview = poem?.image_url
+    ? `<div class="poem-image-preview"><img src="${esc(poem.image_url)}" alt="${esc(poem.title || t('poems.untitled'))}"></div>`
+    : '';
+  const removeBtn = poem?.image_url
+    ? `<button class="btn-danger btn-small" type="button" onclick="removePoemImage()">${t('admin.form.imageRemove')}</button>`
+    : '';
   form.style.display = '';
   form.innerHTML = `
     <div class="poem-form">
@@ -530,6 +557,11 @@ function showPoemForm(poem = null) {
       <label>${t('admin.form.tagsLabel')}
         <input type="text" id="pf-tags" value="${esc((poem?.tags || []).join(', '))}" placeholder="${t('admin.form.tagsPlaceholder')}">
       </label>
+      <label>${t('admin.form.imageLabel')}
+        <input type="file" id="pf-image" accept="image/jpeg,image/png" onchange="previewPoemImage(event)">
+      </label>
+      <div id="pf-image-preview">${imagePreview}</div>
+      ${removeBtn}
       <div class="poem-form-actions">
         <button class="btn-primary" onclick="savePoem()">${poem ? t('admin.form.save') : t('admin.form.publish')}</button>
         <button class="btn-secondary" onclick="closePoemForm()">${t('admin.form.cancel')}</button>
@@ -562,53 +594,108 @@ async function savePoem() {
   const body = document.getElementById('pf-body').value.trim();
   const tagsRaw = document.getElementById('pf-tags').value;
   const tags = tagsRaw.split(',').map(tg => tg.trim()).filter(Boolean);
+  const imageFile = document.getElementById('pf-image').files[0];
   if (!body) { toast(t('admin.form.bodyRequired'), true); return; }
+  if (imageFile) {
+    if (!['image/jpeg', 'image/png'].includes(imageFile.type)) {
+      toast(t('admin.form.imageTypeError'), true);
+      return;
+    }
+    if (imageFile.size > 1024 * 1024) {
+      toast(t('admin.form.imageTooLarge'), true);
+      return;
+    }
+  }
   try {
+    let poem;
     if (editingPoemId) {
-      await apiFetch(`/poems/${editingPoemId}`, {
+      poem = await apiFetch(`/poems/${editingPoemId}`, {
         method: 'PUT',
         body: JSON.stringify({ title, body, tags })
       });
       toast(t('admin.poemUpdated'));
     } else {
-      await apiFetch('/poems', {
+      poem = await apiFetch('/poems', {
         method: 'POST',
         body: JSON.stringify({ title, body, tags })
       });
       toast(t('admin.poemPublished'));
     }
+
+    if (imageFile) {
+      try {
+        await uploadPoemImage(poem.id, imageFile);
+      } catch (e) {
+        toast(t('admin.form.imageUploadError'), true);
+      }
+    }
+
     closePoemForm();
     loadAdminPoems();
   } catch(e) { toast(t('admin.saveError'), true); }
 }
 
-async function deletePoem(id) {
-  if (!confirm(t('admin.deleteConfirm'))) return;
+async function uploadPoemImage(poemId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+  const res = await fetch(API + `/poems/${poemId}/image`, {
+    method: 'POST',
+    headers,
+    body: formData
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+async function removePoemImage() {
+  const preview = document.getElementById('pf-image-preview');
+  if (!editingPoemId) {
+    document.getElementById('pf-image').value = '';
+    preview.innerHTML = '';
+    return;
+  }
   try {
-    await apiFetch(`/poems/${id}`, { method: 'DELETE' });
-    toast(t('admin.deleted'));
-    if (document.getElementById('page-poem').classList.contains('active')) {
-      navigate('poems');
-    } else {
-      loadAdminPoems();
-    }
-  } catch(e) { toast(t('admin.deleteError'), true); }
+    await apiFetch(`/poems/${editingPoemId}/image`, { method: 'DELETE' });
+    preview.innerHTML = '';
+  } catch (e) {
+    toast(t('admin.form.imageDeleteError'), true);
+  }
+}
+
+function previewPoemImage(event) {
+  const file = event.target.files[0];
+  const preview = document.getElementById('pf-image-preview');
+  if (!file) {
+    preview.innerHTML = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    preview.innerHTML = `<div class="poem-image-preview"><img src="${reader.result}" alt="preview"></div>`;
+  };
+  reader.readAsDataURL(file);
 }
 
 // Export poems to JSON
 async function exportPoems() {
   try {
-    const data = await apiFetch('/poems/export/poems');
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(API + '/poems/export/poems', { headers });
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `poems-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `poems-export-${new Date().toISOString().split('T')[0]}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast(`Exported ${data.total} poems`);
+    toast('Exported poems');
   } catch(e) {
     toast('Export failed', true);
     console.error(e);
@@ -639,29 +726,29 @@ async function exportComments() {
 function showImportPoems() {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'application/json,.json';
+  input.accept = 'application/zip,.zip';
   input.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!confirm(`Import poems from ${file.name}? This will add them to your collection.`)) {
+      return;
+    }
+
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      if (!data.poems || !Array.isArray(data.poems)) {
-        toast('Invalid file format: expected {poems: [...]}', true);
-        return;
-      }
-
-      if (!confirm(`Import ${data.poems.length} poems? This will add them to your collection.`)) {
-        return;
-      }
-
-      const result = await apiFetch('/poems/import/poems', {
+      const formData = new FormData();
+      formData.append('file', file);
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(API + '/poems/import/poems', {
         method: 'POST',
-        body: JSON.stringify(data)
+        headers,
+        body: formData
       });
-
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Import failed');
+      }
+      const result = await res.json();
       toast(`Imported ${result.imported} of ${result.total_attempted} poems`);
       if (result.errors.length > 0) {
         console.warn('Import errors:', result.errors);
@@ -725,48 +812,13 @@ async function loadAboutForm() {
   } catch(e) {}
 }
 
-async function saveAbout(e) {
-  e.preventDefault();
-  const name = document.getElementById('about-name').value;
-  const photo_url = document.getElementById('about-photo').value;
-  const bio = document.getElementById('about-bio').value;
-  try {
-    await apiFetch('/about', { method: 'PUT', body: JSON.stringify({ name, photo_url, bio }) });
-    toast(t('about.saved'));
-  } catch(e) { toast(t('about.saveError'), true); }
-}
-
-async function changePassword(e) {
-  e.preventDefault();
-  const current = document.getElementById('pw-current').value;
-  const newPw = document.getElementById('pw-new').value;
-  const confirm = document.getElementById('pw-confirm').value;
-  if (newPw !== confirm) { toast(t('password.mismatch'), true); return; }
-  try {
-    await apiFetch('/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ current_password: current, new_password: newPw })
-    });
-    toast(t('password.changed'));
-    e.target.reset();
-  } catch(e) { toast(e.message || t('generic.error'), true); }
-}
-
-// ─── LOGIN MODAL ──────────────────────────────────────────────────────────────
-function showLoginModal() {
-  document.getElementById('modal-overlay').classList.add('open');
-  document.getElementById('login-modal').classList.add('open');
-  setTimeout(() => document.getElementById('login-user').focus(), 100);
-}
-function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('open');
-  document.getElementById('login-modal').classList.remove('open');
-}
-
-// ─── UTILS ────────────────────────────────────────────────────────────────────
 function renderPoemCard(p) {
+  const image = p.image_url
+    ? `<div class="poem-card-image"><img src="${esc(p.image_url)}" alt="${esc(p.title || t('poems.untitled'))}"></div>`
+    : '';
   return `
-    <div class="poem-card" onclick="navigate('poem', true, ${p.id})">
+    <div class="poem-card" onclick="navigate('poem', true, '${esc(p.uuid)}')">
+      ${image}
       <div class="poem-card-title ${!p.title ? 'untitled' : ''}">${p.title || t('poems.untitled')}</div>
       <div class="poem-card-preview">${esc(p.body.slice(0, 200))}</div>
       <div class="poem-card-meta">
@@ -801,5 +853,16 @@ function toast(msg, isError = false) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function showLoginModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('login-modal').classList.add('open');
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('login-modal').classList.remove('open');
 }
 

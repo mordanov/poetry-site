@@ -7,6 +7,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Tabl
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import uuid
 
 Base = declarative_base()
 
@@ -50,8 +51,10 @@ class Poem(Base):
     __tablename__ = "poems"
 
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(500), nullable=False, default='')
     body = Column(Text, nullable=False)
+    image_filename = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -105,4 +108,3 @@ class Comment(Base):
 
     def __repr__(self):
         return f"<Comment(author='{self.author}', poem_id={self.poem_id})>"
-

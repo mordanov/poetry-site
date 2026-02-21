@@ -4,10 +4,11 @@ Uses SQLAlchemy ORM with SQLite
 """
 
 import os
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
 from dotenv import load_dotenv
 import bcrypt
+import uuid
 
 from models import Base, Admin, About
 
@@ -15,9 +16,11 @@ load_dotenv()
 
 # Database configuration
 DB_PATH = os.getenv("DB_PATH", "/app/data/poetry.db")
+UPLOADS_DIR = os.getenv("UPLOADS_DIR", "/app/data/uploads/poems")
 
 # Ensure data directory exists
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 # Build SQLite database URL
 DATABASE_URL = f"sqlite:///{DB_PATH}"
@@ -59,6 +62,27 @@ def get_db() -> Session:
         db.close()
 
 
+def _column_exists(db: Session, table: str, column: str) -> bool:
+    rows = db.execute(text(f"PRAGMA table_info({table})")).fetchall()
+    return any(row[1] == column for row in rows)
+
+
+def _migrate_poems_schema(db: Session) -> None:
+    if not _column_exists(db, "poems", "uuid"):
+        db.execute(text("ALTER TABLE poems ADD COLUMN uuid VARCHAR(36)"))
+    if not _column_exists(db, "poems", "image_filename"):
+        db.execute(text("ALTER TABLE poems ADD COLUMN image_filename VARCHAR(255)"))
+
+    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_poems_uuid ON poems (uuid)"))
+
+    rows = db.execute(text("SELECT id FROM poems WHERE uuid IS NULL OR uuid = ''")).fetchall()
+    for (poem_id,) in rows:
+        db.execute(
+            text("UPDATE poems SET uuid = :uuid WHERE id = :id"),
+            {"uuid": str(uuid.uuid4()), "id": poem_id}
+        )
+
+
 def init_db():
     """
     Initialize database schema and seed default data
@@ -70,10 +94,12 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     print("✅ Database schema created/verified")
 
-    # Seed default data
+    # Apply lightweight migrations
     db = SessionLocal()
     try:
-        # Get admin credentials from environment
+        _migrate_poems_schema(db)
+
+        # Seed default data
         default_username = os.getenv("ADMIN_USERNAME", "admin")
         default_password = os.getenv("ADMIN_PASSWORD", "changeme123")
 

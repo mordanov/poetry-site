@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from pydantic import BaseModel
@@ -7,8 +8,16 @@ from datetime import datetime
 from database import get_db
 from routers.auth import get_current_admin
 from models import Poem, Tag, Comment, Admin
+import io
+import json
+import os
+import zipfile
 
 router = APIRouter()
+
+UPLOADS_DIR = os.getenv("UPLOADS_DIR", "/app/data/uploads/poems")
+MAX_IMAGE_SIZE = 1 * 1024 * 1024
+ALLOWED_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png"}
 
 class PoemIn(BaseModel):
     title: Optional[str] = ""
@@ -22,14 +31,34 @@ class PoemUpdate(BaseModel):
 
 class PoemOut(BaseModel):
     id: int
+    uuid: str
     title: str
     body: str
+    image_url: Optional[str]
     created_at: str
     updated_at: str
     tags: List[str]
 
     class Config:
         from_attributes = True
+
+def _image_url(poem: Poem) -> Optional[str]:
+    if not poem.image_filename:
+        return None
+    return f"/uploads/poems/{poem.image_filename}"
+
+
+def _poem_to_dict(poem: Poem) -> dict:
+    return {
+        "id": poem.id,
+        "uuid": poem.uuid,
+        "title": poem.title,
+        "body": poem.body,
+        "image_url": _image_url(poem),
+        "created_at": poem.created_at.isoformat(),
+        "updated_at": poem.updated_at.isoformat(),
+        "tags": [t.name for t in poem.tags]
+    }
 
 @router.get("")
 def list_poems(tag: Optional[str] = None, db: Session = Depends(get_db)):
@@ -40,17 +69,7 @@ def list_poems(tag: Optional[str] = None, db: Session = Depends(get_db)):
         query = query.join(Poem.tags).filter(Tag.name == tag.lower())
 
     poems = query.all()
-    result = []
-    for poem in poems:
-        result.append({
-            "id": poem.id,
-            "title": poem.title,
-            "body": poem.body,
-            "created_at": poem.created_at.isoformat(),
-            "updated_at": poem.updated_at.isoformat(),
-            "tags": [t.name for t in poem.tags]
-        })
-    return result
+    return [_poem_to_dict(poem) for poem in poems]
 
 @router.get("/tags")
 def list_tags(db: Session = Depends(get_db)):
@@ -65,6 +84,16 @@ def list_tags(db: Session = Depends(get_db)):
     result.sort(key=lambda x: x["count"], reverse=True)
     return result
 
+@router.get("/uuid/{poem_uuid}")
+def get_poem_by_uuid(poem_uuid: str, db: Session = Depends(get_db)):
+    """Get a specific poem by UUID"""
+    poem = db.query(Poem).filter(Poem.uuid == poem_uuid).first()
+    if not poem:
+        raise HTTPException(404, "Poem not found")
+
+    return _poem_to_dict(poem)
+
+
 @router.get("/{poem_id}")
 def get_poem(poem_id: int, db: Session = Depends(get_db)):
     """Get a specific poem"""
@@ -72,14 +101,7 @@ def get_poem(poem_id: int, db: Session = Depends(get_db)):
     if not poem:
         raise HTTPException(404, "Poem not found")
 
-    return {
-        "id": poem.id,
-        "title": poem.title,
-        "body": poem.body,
-        "created_at": poem.created_at.isoformat(),
-        "updated_at": poem.updated_at.isoformat(),
-        "tags": [t.name for t in poem.tags]
-    }
+    return _poem_to_dict(poem)
 
 @router.post("", status_code=201)
 def create_poem(data: PoemIn, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
@@ -101,14 +123,7 @@ def create_poem(data: PoemIn, admin: Admin = Depends(get_current_admin), db: Ses
     db.commit()
     db.refresh(poem)
 
-    return {
-        "id": poem.id,
-        "title": poem.title,
-        "body": poem.body,
-        "created_at": poem.created_at.isoformat(),
-        "updated_at": poem.updated_at.isoformat(),
-        "tags": [t.name for t in poem.tags]
-    }
+    return _poem_to_dict(poem)
 
 @router.put("/{poem_id}")
 def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
@@ -138,14 +153,62 @@ def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_curre
     db.commit()
     db.refresh(poem)
 
+    return _poem_to_dict(poem)
+
+
+@router.post("/{poem_id}/image")
+async def upload_poem_image(poem_id: int, file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Upload or replace a poem image (admin only)"""
+    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+    if not poem:
+        raise HTTPException(404, "Poem not found")
+
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, "Invalid image type. Only JPG and PNG are allowed")
+
+    content = await file.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(400, "Image is too large. Max size is 1MB")
+
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+    ext = ALLOWED_IMAGE_TYPES[file.content_type]
+    filename = f"{poem.uuid}{ext}"
+    file_path = os.path.join(UPLOADS_DIR, filename)
+
+    if poem.image_filename and poem.image_filename != filename:
+        old_path = os.path.join(UPLOADS_DIR, poem.image_filename)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    with open(file_path, "wb") as out:
+        out.write(content)
+
+    poem.image_filename = filename
+    db.commit()
+    db.refresh(poem)
+
     return {
-        "id": poem.id,
-        "title": poem.title,
-        "body": poem.body,
-        "created_at": poem.created_at.isoformat(),
-        "updated_at": poem.updated_at.isoformat(),
-        "tags": [t.name for t in poem.tags]
+        "ok": True,
+        "image_url": _image_url(poem)
     }
+
+
+@router.delete("/{poem_id}/image")
+def delete_poem_image(poem_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Delete a poem image (admin only)"""
+    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+    if not poem:
+        raise HTTPException(404, "Poem not found")
+
+    if poem.image_filename:
+        image_path = os.path.join(UPLOADS_DIR, poem.image_filename)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        poem.image_filename = None
+        db.commit()
+
+    return {"ok": True}
 
 @router.delete("/{poem_id}", status_code=204)
 def delete_poem(poem_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
@@ -154,181 +217,140 @@ def delete_poem(poem_id: int, admin: Admin = Depends(get_current_admin), db: Ses
     if not poem:
         raise HTTPException(404, "Poem not found")
 
+    if poem.image_filename:
+        image_path = os.path.join(UPLOADS_DIR, poem.image_filename)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
     db.delete(poem)
     db.commit()
 
 
 @router.get("/export/poems")
 def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Export all poems with tags to JSON format (admin only)"""
-    poems = db.query(Poem).order_by(Poem.created_at).all()
+    """Export poems and images into a zip archive (admin only)"""
+    poems = db.query(Poem).order_by(Poem.uuid).all()
 
-    result = []
+    payload = []
     for poem in poems:
-        result.append({
+        payload.append({
+            "uuid": poem.uuid,
             "title": poem.title,
             "body": poem.body,
             "tags": [t.name for t in poem.tags],
+            "image_filename": poem.image_filename,
             "created_at": poem.created_at.isoformat(),
             "updated_at": poem.updated_at.isoformat()
         })
 
-    return {
-        "poems": result,
-        "total": len(result),
-        "exported_at": datetime.now().isoformat()
-    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        zipf.writestr("poems.json", json.dumps({
+            "poems": payload,
+            "total": len(payload),
+            "exported_at": datetime.now().isoformat()
+        }, ensure_ascii=False, indent=2))
+
+        for poem in poems:
+            if poem.image_filename:
+                image_path = os.path.join(UPLOADS_DIR, poem.image_filename)
+                if os.path.exists(image_path):
+                    zipf.write(image_path, f"images/{poem.image_filename}")
+
+    buffer.seek(0)
+    filename = f"poems-export-{datetime.now().strftime('%Y-%m-%d')}.zip"
+    headers = {"Content-Disposition": f"attachment; filename={filename}"}
+    return StreamingResponse(buffer, media_type="application/zip", headers=headers)
 
 
 @router.post("/import/poems")
-def import_poems(data: dict, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Import poems from JSON format (admin only)
+async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Import poems and images from a zip archive (admin only)"""
+    if not file.filename.lower().endswith(".zip"):
+        raise HTTPException(400, "Invalid file format: expected .zip")
 
-    Expected format:
-    {
-        "poems": [
-            {
-                "title": "Poem title",
-                "body": "Poem content",
-                "tags": ["tag1", "tag2"]
-            }
-        ]
-    }
-    """
-    if "poems" not in data or not isinstance(data["poems"], list):
-        raise HTTPException(400, "Invalid format: 'poems' array is required")
-
-    imported_count = 0
-    errors = []
-
-    for idx, poem_data in enumerate(data["poems"]):
-        try:
-            if "body" not in poem_data:
-                errors.append(f"Poem #{idx + 1}: missing 'body' field")
-                continue
-
-            poem = Poem(
-                title=poem_data.get("title", ""),
-                body=poem_data["body"]
-            )
-
-            # Add tags if provided
-            if "tags" in poem_data and isinstance(poem_data["tags"], list):
-                for tag_name in poem_data["tags"]:
-                    tag_name = tag_name.strip().lower()
-                    if tag_name:
-                        tag = db.query(Tag).filter(Tag.name == tag_name).first()
-                        if not tag:
-                            tag = Tag(name=tag_name)
-                            db.add(tag)
-                            db.flush()
-                        poem.tags.append(tag)
-
-            db.add(poem)
-            imported_count += 1
-
-        except Exception as e:
-            errors.append(f"Poem #{idx + 1}: {str(e)}")
+    content = await file.read()
+    buffer = io.BytesIO(content)
 
     try:
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(500, f"Failed to save poems: {str(e)}")
+        with zipfile.ZipFile(buffer, "r") as zipf:
+            if "poems.json" not in zipf.namelist():
+                raise HTTPException(400, "Invalid archive: poems.json not found")
 
-    return {
-        "imported": imported_count,
-        "errors": errors,
-        "total_attempted": len(data["poems"])
-    }
+            poems_data = json.loads(zipf.read("poems.json").decode("utf-8"))
+            if "poems" not in poems_data or not isinstance(poems_data["poems"], list):
+                raise HTTPException(400, "Invalid format: 'poems' array is required")
 
+            imported_count = 0
+            errors = []
 
-@router.get("/export/comments")
-def export_comments(admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Export all comments with associated poem info to JSON format (admin only)"""
-    comments = db.query(Comment).order_by(Comment.created_at).all()
+            for idx, poem_data in enumerate(poems_data["poems"]):
+                try:
+                    if "body" not in poem_data:
+                        errors.append(f"Poem #{idx + 1}: missing 'body' field")
+                        continue
 
-    result = []
-    for comment in comments:
-        poem = db.query(Poem).filter(Poem.id == comment.poem_id).first()
-        result.append({
-            "comment_id": comment.id,
-            "author": comment.author,
-            "body": comment.body,
-            "created_at": comment.created_at.isoformat(),
-            "poem": {
-                "id": poem.id if poem else None,
-                "title": poem.title if poem else "Deleted poem",
-                "body_preview": poem.body[:100] + "..." if poem and len(poem.body) > 100 else (poem.body if poem else "")
+                    poem_uuid = poem_data.get("uuid")
+                    if not poem_uuid:
+                        errors.append(f"Poem #{idx + 1}: missing 'uuid' field")
+                        continue
+
+                    if db.query(Poem).filter(Poem.uuid == poem_uuid).first():
+                        errors.append(f"Poem #{idx + 1}: uuid already exists")
+                        continue
+
+                    poem = Poem(
+                        uuid=poem_uuid,
+                        title=poem_data.get("title", ""),
+                        body=poem_data["body"],
+                        created_at=datetime.fromisoformat(poem_data.get("created_at")) if poem_data.get("created_at") else datetime.utcnow(),
+                        updated_at=datetime.fromisoformat(poem_data.get("updated_at")) if poem_data.get("updated_at") else datetime.utcnow()
+                    )
+
+                    if "tags" in poem_data and isinstance(poem_data["tags"], list):
+                        for tag_name in poem_data["tags"]:
+                            tag_name = tag_name.strip().lower()
+                            if tag_name:
+                                tag = db.query(Tag).filter(Tag.name == tag_name).first()
+                                if not tag:
+                                    tag = Tag(name=tag_name)
+                                    db.add(tag)
+                                    db.flush()
+                                poem.tags.append(tag)
+
+                    image_filename = poem_data.get("image_filename")
+                    if image_filename:
+                        image_entry = f"images/{image_filename}"
+                        if image_entry in zipf.namelist():
+                            ext = os.path.splitext(image_filename)[1].lower()
+                            if ext in (".jpg", ".jpeg", ".png"):
+                                target_filename = f"{poem.uuid}{'.png' if ext == '.png' else '.jpg'}"
+                                os.makedirs(UPLOADS_DIR, exist_ok=True)
+                                with zipf.open(image_entry) as img_file:
+                                    image_bytes = img_file.read()
+                                if len(image_bytes) > MAX_IMAGE_SIZE:
+                                    errors.append(f"Poem #{idx + 1}: image too large")
+                                else:
+                                    with open(os.path.join(UPLOADS_DIR, target_filename), "wb") as out:
+                                        out.write(image_bytes)
+                                    poem.image_filename = target_filename
+
+                    db.add(poem)
+                    imported_count += 1
+
+                except Exception as e:
+                    errors.append(f"Poem #{idx + 1}: {str(e)}")
+
+            try:
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(500, f"Failed to save poems: {str(e)}")
+
+            return {
+                "imported": imported_count,
+                "errors": errors,
+                "total_attempted": len(poems_data["poems"])
             }
-        })
-
-    return {
-        "comments": result,
-        "total": len(result),
-        "exported_at": datetime.now().isoformat()
-    }
-
-
-@router.post("/import/comments")
-def import_comments(data: dict, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Import comments from JSON format (admin only)
-
-    Expected format:
-    {
-        "comments": [
-            {
-                "author": "Name",
-                "body": "Comment text",
-                "poem_id": 1
-            }
-        ]
-    }
-    """
-    if "comments" not in data or not isinstance(data["comments"], list):
-        raise HTTPException(400, "Invalid format: 'comments' array is required")
-
-    imported_count = 0
-    errors = []
-
-    for idx, comment_data in enumerate(data["comments"]):
-        try:
-            if "body" not in comment_data:
-                errors.append(f"Comment #{idx + 1}: missing 'body' field")
-                continue
-
-            if "poem_id" not in comment_data:
-                errors.append(f"Comment #{idx + 1}: missing 'poem_id' field")
-                continue
-
-            # Verify poem exists
-            poem = db.query(Poem).filter(Poem.id == comment_data["poem_id"]).first()
-            if not poem:
-                errors.append(f"Comment #{idx + 1}: poem_id {comment_data['poem_id']} not found")
-                continue
-
-            comment = Comment(
-                author=comment_data.get("author", "Anonymous"),
-                body=comment_data["body"],
-                poem_id=comment_data["poem_id"]
-            )
-
-            db.add(comment)
-            imported_count += 1
-
-        except Exception as e:
-            errors.append(f"Comment #{idx + 1}: {str(e)}")
-
-    try:
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(500, f"Failed to save comments: {str(e)}")
-
-    return {
-        "imported": imported_count,
-        "errors": errors,
-        "total_attempted": len(data["comments"])
-    }
-
-
+    except zipfile.BadZipFile:
+        raise HTTPException(400, "Invalid zip archive")
