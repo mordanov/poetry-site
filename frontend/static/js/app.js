@@ -781,7 +781,7 @@ function showImportPoems() {
       const formData = new FormData();
       formData.append('file', file);
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const res = await fetch(API + '/poems/import/poems', {
+      const res = await fetch(API + '/poems/import', {
         method: 'POST',
         headers,
         body: formData

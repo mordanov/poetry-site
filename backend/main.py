@@ -20,16 +20,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Poetry Site API", lifespan=lifespan)
 
-uploads_dir = os.getenv("UPLOADS_DIR", "/app/data/uploads/poems")
-app.mount("/uploads", StaticFiles(directory=os.path.dirname(uploads_dir)), name="uploads")
-
+# Increase max upload size to 100MB for ZIP exports/imports
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=3600,
 )
+
+uploads_dir = os.getenv("UPLOADS_DIR", "/app/data/uploads/poems")
+app.mount("/uploads", StaticFiles(directory=os.path.dirname(uploads_dir)), name="uploads")
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(poems.router, prefix="/api/poems", tags=["poems"])
@@ -41,4 +43,14 @@ def health():
     return {"status": "ok"}
 
 if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+        limit_max_requests=10000,
+        limit_concurrency=100,
+        # Increase limits for file uploads (100MB max body size)
+        log_level="info"
+    )
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

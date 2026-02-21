@@ -144,7 +144,7 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
     headers = {"Content-Disposition": f"attachment; filename={filename}"}
     return StreamingResponse(buffer, media_type="application/zip", headers=headers)
 
-@router.post("/import/poems")
+@router.post("/import")
 async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Import poems, images, and comments from a zip archive (admin only)"""
     if not file.filename.lower().endswith(".zip"):
