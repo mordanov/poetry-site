@@ -345,54 +345,113 @@ function updateAuthUI() {
 // ─── HOME ─────────────────────────────────────────────────────────────────────
 async function loadHome() {
   try {
-    const poems = await apiFetch('/poems');
+    const poemsData = await apiFetch('/poems?limit=6');
+    const poems = poemsData.poems || [];
     const container = document.getElementById('home-poems');
-    const latest = poems.slice(0, 6);
-    if (!latest.length) {
+    if (!poems.length) {
       container.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:1rem">${t('poems.noneHome')}</p>`;
       return;
     }
-    container.innerHTML = latest.map(renderPoemCard).join('');
+    container.innerHTML = poems.map(renderPoemCard).join('');
   } catch(e) { console.error(e); }
 }
 
 // ─── POEMS LIST ───────────────────────────────────────────────────────────────
-async function loadPoems(tag = null) {
+async function loadPoems(tag = null, page = 1) {
   currentTag = tag;
   try {
-    const [poems, allTags] = await Promise.all([
-      apiFetch('/poems' + (tag ? `?tag=${encodeURIComponent(tag)}` : '')),
+    const tagParam = tag ? `&tag=${encodeURIComponent(tag)}` : '';
+    const [poemsData, allTags] = await Promise.all([
+      apiFetch(`/poems?page=${page}&limit=10${tagParam}`),
       apiFetch('/poems/tags')
     ]);
+
+    const poems = poemsData.poems || [];
+    const total = poemsData.total || 0;
+    const totalPages = poemsData.total_pages || 1;
+    const currentPage = poemsData.page || 1;
 
     // Render tags bar
     const tagsBar = document.getElementById('tags-bar');
     tagsBar.innerHTML = [
-      `<button class="tag-filter ${!tag ? 'active' : ''}" onclick="loadPoems()">${t('poems.all')}</button>`,
+      `<button class="tag-filter ${!tag ? 'active' : ''}" onclick="loadPoems(null, 1)">${t('poems.all')}</button>`,
       ...allTags.map(tg =>
-        `<button class="tag-filter ${tag === tg.name ? 'active' : ''}" onclick="loadPoems('${esc(tg.name)}')">${esc(tg.name)} <span style="opacity:.6">(${tg.count})</span></button>`
+        `<button class="tag-filter ${tag === tg.name ? 'active' : ''}" onclick="loadPoems('${esc(tg.name)}', 1)">${esc(tg.name)} <span style="opacity:.6">(${tg.count})</span></button>`
       )
     ].join('');
 
-    // Render poem rows
+    // Render poem cards
     const list = document.getElementById('poems-list');
     if (!poems.length) {
       list.innerHTML = `<p style="color:var(--muted);font-style:italic;padding:3rem 0">${t('poems.none')}</p>`;
       return;
     }
-    list.innerHTML = poems.map(p => `
-      <div class="poem-row" onclick="navigate('poem', true, '${esc(p.uuid)}')">
-        <div>
-          <div class="poem-row-title ${!p.title ? 'untitled' : ''}">${p.title || t('poems.untitled')}</div>
-          <div class="poem-row-preview">${esc(p.body.slice(0, 120))}</div>
-        </div>
-        <div class="poem-row-right">
-          <div class="poem-row-tags">${p.tags.map(tg => `<span class="tag" onclick="event.stopPropagation();loadPoems('${esc(tg)}')">${esc(tg)}</span>`).join('')}</div>
-          <div class="poem-row-date">${fmtDate(p.created_at)}</div>
-        </div>
-      </div>
-    `).join('');
+    list.innerHTML = poems.map(renderPoemCard).join('');
+
+    // Render pagination
+    renderPagination(currentPage, totalPages, tag);
   } catch(e) { console.error(e); }
+}
+
+function renderPagination(currentPage, totalPages, tag) {
+  const paginationContainer = document.getElementById('pagination');
+  if (!paginationContainer) {
+    // Create pagination container if it doesn't exist
+    const list = document.getElementById('poems-list');
+    const container = document.createElement('div');
+    container.id = 'pagination';
+    container.className = 'pagination';
+    list.parentNode.insertBefore(container, list.nextSibling);
+  }
+
+  const pagination = document.getElementById('pagination');
+
+  if (totalPages <= 1) {
+    pagination.innerHTML = '';
+    return;
+  }
+
+  let pages = [];
+
+  // Previous button
+  if (currentPage > 1) {
+    pages.push(`<button class="page-btn" onclick="loadPoems(${tag ? `'${esc(tag)}'` : 'null'}, ${currentPage - 1})">←</button>`);
+  }
+
+  // Page numbers
+  const maxVisible = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+  if (endPage - startPage < maxVisible - 1) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+
+  if (startPage > 1) {
+    pages.push(`<button class="page-btn" onclick="loadPoems(${tag ? `'${esc(tag)}'` : 'null'}, 1)">1</button>`);
+    if (startPage > 2) {
+      pages.push(`<span class="page-ellipsis">...</span>`);
+    }
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    const active = i === currentPage ? 'active' : '';
+    pages.push(`<button class="page-btn ${active}" onclick="loadPoems(${tag ? `'${esc(tag)}'` : 'null'}, ${i})">${i}</button>`);
+  }
+
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) {
+      pages.push(`<span class="page-ellipsis">...</span>`);
+    }
+    pages.push(`<button class="page-btn" onclick="loadPoems(${tag ? `'${esc(tag)}'` : 'null'}, ${totalPages})">${totalPages}</button>`);
+  }
+
+  // Next button
+  if (currentPage < totalPages) {
+    pages.push(`<button class="page-btn" onclick="loadPoems(${tag ? `'${esc(tag)}'` : 'null'}, ${currentPage + 1})">→</button>`);
+  }
+
+  pagination.innerHTML = pages.join('');
 }
 
 // ─── SINGLE POEM ──────────────────────────────────────────────────────────────
@@ -422,7 +481,7 @@ async function loadPoem(uuid) {
         <div class="poem-text">
           <h1 class="poem-full-title ${!poem.title ? 'untitled' : ''}">${poem.title || t('poems.untitled')}</h1>
           <div class="poem-full-meta">
-            ${poem.tags.map(tg => `<span class="tag" onclick="navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}'),50)">${esc(tg)}</span>`).join('')}
+            ${poem.tags.map(tg => `<span class="tag" onclick="navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}', 1),50)">${esc(tg)}</span>`).join('')}
             <span class="poem-date">${fmtDate(poem.created_at)}</span>
           </div>
           <div class="poem-body">${esc(poem.body)}</div>
@@ -515,7 +574,8 @@ function adminTab(name) {
 // Admin poems list
 async function loadAdminPoems() {
   try {
-    const poems = await apiFetch('/poems');
+    const poemsData = await apiFetch('/poems?limit=1000');
+    const poems = poemsData.poems || [];
     const list = document.getElementById('admin-poems-list');
     if (!poems.length) {
       list.innerHTML = `<p style="color:var(--muted);font-style:italic;padding:1rem 0">${t('admin.none')}</p>`;
@@ -838,7 +898,7 @@ function renderPoemCard(p) {
       <div class="poem-card-title ${!p.title ? 'untitled' : ''}">${p.title || t('poems.untitled')}</div>
       <div class="poem-card-preview">${esc(p.body.slice(0, 200))}</div>
       <div class="poem-card-meta">
-        ${p.tags.map(tg => `<span class="tag" onclick="event.stopPropagation();navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}'),50)">${esc(tg)}</span>`).join('')}
+        ${p.tags.map(tg => `<span class="tag" onclick="event.stopPropagation();navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}', 1),50)">${esc(tg)}</span>`).join('')}
         <span class="poem-date">${fmtDate(p.created_at)}</span>
       </div>
     </div>

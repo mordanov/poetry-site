@@ -64,13 +64,31 @@ def _poem_to_dict(poem: Poem) -> dict:
 
 # ====== LIST & FILTER ======
 @router.get("")
-def list_poems(tag: Optional[str] = None, db: Session = Depends(get_db)):
-    """List all poems, optionally filtered by tag"""
+def list_poems(
+    tag: Optional[str] = None,
+    page: int = 1,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """List all poems with pagination, optionally filtered by tag"""
     query = db.query(Poem).order_by(desc(Poem.created_at))
     if tag:
         query = query.join(Poem.tags).filter(Tag.name == tag.lower())
-    poems = query.all()
-    return [_poem_to_dict(poem) for poem in poems]
+
+    # Get total count
+    total = query.count()
+
+    # Apply pagination
+    offset = (page - 1) * limit
+    poems = query.offset(offset).limit(limit).all()
+
+    return {
+        "poems": [_poem_to_dict(poem) for poem in poems],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
 
 @router.get("/tags")
 def list_tags(db: Session = Depends(get_db)):
