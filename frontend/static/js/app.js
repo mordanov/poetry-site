@@ -65,6 +65,8 @@ const I18N = {
     'admin.form.imageTooLarge': 'Image is too large (max 1MB)',
     'admin.form.imageUploadError': 'Image upload failed',
     'admin.form.imageDeleteError': 'Image delete failed',
+    'admin.form.imageGenerateError': 'Image generation failed',
+    'admin.form.generateImage': '✨ Generate with AI',
     'admin.form.save': 'Save changes',
     'admin.form.publish': 'Publish',
     'admin.form.cancel': 'Cancel',
@@ -153,6 +155,8 @@ const I18N = {
     'admin.form.imageTooLarge': 'Картинка слишком большая (макс. 1MB)',
     'admin.form.imageUploadError': 'Ошибка загрузки картинки',
     'admin.form.imageDeleteError': 'Ошибка удаления картинки',
+    'admin.form.imageGenerateError': 'Ошибка генерации картинки',
+    'admin.form.generateImage': '✨ Сгенерировать с AI',
     'admin.form.save': 'Сохранить',
     'admin.form.publish': 'Опубликовать',
     'admin.form.cancel': 'Отмена',
@@ -558,6 +562,7 @@ function showPoemForm(poem = null) {
       </label>
       <div id="pf-image-preview">${imagePreview}</div>
       ${removeBtn}
+      ${editingPoemId && !poem?.image_url ? `<button class="btn-secondary btn-small" type="button" onclick="generatePoemImage(${editingPoemId})" data-i18n="admin.form.generateImage">✨ Generate with AI</button>` : ''}
       <div class="poem-form-actions">
         <button class="btn-primary" onclick="savePoem()">${poem ? t('admin.form.save') : t('admin.form.publish')}</button>
         <button class="btn-secondary" onclick="closePoemForm()">${t('admin.form.cancel')}</button>
@@ -674,6 +679,47 @@ function previewPoemImage(event) {
     preview.innerHTML = `<div class="poem-image-preview"><img src="${reader.result}" alt="preview"></div>`;
   };
   reader.readAsDataURL(file);
+}
+
+async function generatePoemImage(poemId) {
+  const btn = event.target;
+  const originalText = btn.textContent;
+
+  try {
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating...';
+
+    console.log(`[AI] Generating image for poem ${poemId}...`);
+
+    const res = await fetch(API + `/poems/${poemId}/generate-image`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+
+    console.log(`[AI] Response status: ${res.status}`);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      console.error(`[AI] Error response:`, err);
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    const result = await res.json();
+    console.log(`[AI] Generation successful:`, result);
+
+    // Update preview with generated image
+    const preview = document.getElementById('pf-image-preview');
+    preview.innerHTML = `<div class="poem-image-preview"><img src="${result.image_url}" alt="generated"></div>`;
+
+    toast(result.message || '✨ Image generated successfully');
+
+  } catch(e) {
+    console.error(`[AI] Generation failed:`, e);
+    toast(t('admin.form.imageGenerateError') + ': ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 // Export poems to JSON

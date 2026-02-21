@@ -5,6 +5,10 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import os
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in project root
+load_dotenv()
 
 from database import init_db
 from routers import poems, about, comments, auth
