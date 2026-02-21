@@ -35,10 +35,15 @@ jobs:
           
           cd ~/poetry
           
-          # Clone or pull repository using GitHub token
+          # Configure git to use GitHub token for authentication
+          git config --global credential.helper store
+          echo "https://git:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+          chmod 600 ~/.git-credentials
+          
+          # Clone or pull repository
           if [ ! -d .git ]; then
             echo "📥 Cloning repository..."
-            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git .
+            git clone https://github.com/${{ github.repository }}.git .
           else
             echo "🔄 Pulling latest changes..."
             git pull origin main
