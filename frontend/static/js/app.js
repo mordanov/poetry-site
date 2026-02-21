@@ -667,6 +667,18 @@ async function removePoemImage() {
   }
 }
 
+async function deletePoem(poemId) {
+  if (!confirm(t('admin.deleteConfirm'))) return;
+
+  try {
+    await apiFetch(`/poems/${poemId}`, { method: 'DELETE' });
+    toast(t('admin.deleted'));
+    loadAdminPoems();
+  } catch(e) {
+    toast(t('admin.deleteError'), true);
+  }
+}
+
 function previewPoemImage(event) {
   const file = event.target.files[0];
   const preview = document.getElementById('pf-image-preview');
