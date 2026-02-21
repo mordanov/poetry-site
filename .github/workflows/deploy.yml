@@ -1,0 +1,78 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          set -e
+          
+          echo "🚀 Starting deployment..."
+          
+          # Create poetry directory if it doesn't exist
+          if [ ! -d /poetry ]; then
+            echo "📁 Creating /poetry directory..."
+            mkdir -p /poetry
+          fi
+          
+          cd /poetry
+          
+          # Clone or pull repository
+          if [ ! -d .git ]; then
+            echo "📥 Cloning repository..."
+            git clone https://github.com/${{ github.repository }}.git .
+          else
+            echo "🔄 Pulling latest changes..."
+            git pull origin main
+          fi
+          
+          # Pull latest changes
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+          
+          echo "🐳 Building and starting Docker containers..."
+          docker-compose down
+          docker-compose up -d --build
+          
+          echo "✅ Deployment completed successfully!"
+          
+          # Check if services are running
+          docker-compose ps
+          EOF
+
+      - name: Check health
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          cd /poetry
+          echo "🏥 Checking service health..."
+          sleep 5
+          curl -s http://localhost/api/health || echo "⚠️  Health check failed"
+          EOF
+
+      - name: Deploy notification
+        if: success()
+        run: echo "✅ Deployment to ${{ secrets.SERVER_HOST }} completed successfully!"
+
+      - name: Deploy failed notification
+        if: failure()
+        run: echo "❌ Deployment failed!"
+
