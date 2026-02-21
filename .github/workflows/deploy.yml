@@ -28,12 +28,12 @@ jobs:
           echo "🚀 Starting deployment..."
           
           # Create poetry directory if it doesn't exist
-          if [ ! -d /poetry ]; then
-            echo "📁 Creating /poetry directory..."
-            mkdir -p /poetry
+          if [ ! -d ~/poetry ]; then
+            echo "📁 Creating ~/poetry directory..."
+            mkdir -p ~/poetry
           fi
           
-          cd /poetry
+          cd ~/poetry
           
           # Clone or pull repository
           if [ ! -d .git ]; then
@@ -50,19 +50,19 @@ jobs:
           git reset --hard origin/main
           
           echo "🐳 Building and starting Docker containers..."
-          docker-compose down
-          docker-compose up -d --build
+          docker compose down
+          docker compose up -d --build
           
           echo "✅ Deployment completed successfully!"
           
           # Check if services are running
-          docker-compose ps
+          docker compose ps
           EOF
 
       - name: Check health
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          cd /poetry
+          cd ~/poetry
           echo "🏥 Checking service health..."
           sleep 5
           curl -s http://localhost/api/health || echo "⚠️  Health check failed"
