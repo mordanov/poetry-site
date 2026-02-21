@@ -228,12 +228,14 @@ def delete_poem(poem_id: int, admin: Admin = Depends(get_current_admin), db: Ses
 
 @router.get("/export/poems")
 def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Export poems and images into a zip archive (admin only)"""
+    """Export poems, images, and comments into a zip archive (admin only)"""
     poems = db.query(Poem).order_by(Poem.uuid).all()
 
-    payload = []
+    poems_payload = []
+    comments_payload = []
+
     for poem in poems:
-        payload.append({
+        poems_payload.append({
             "uuid": poem.uuid,
             "title": poem.title,
             "body": poem.body,
@@ -243,14 +245,32 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
             "updated_at": poem.updated_at.isoformat()
         })
 
+        # Export comments for this poem
+        for comment in poem.comments:
+            comments_payload.append({
+                "poem_uuid": poem.uuid,
+                "author": comment.author,
+                "body": comment.body,
+                "created_at": comment.created_at.isoformat()
+            })
+
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # Write poems
         zipf.writestr("poems.json", json.dumps({
-            "poems": payload,
-            "total": len(payload),
+            "poems": poems_payload,
+            "total": len(poems_payload),
             "exported_at": datetime.now().isoformat()
         }, ensure_ascii=False, indent=2))
 
+        # Write comments
+        zipf.writestr("comments.json", json.dumps({
+            "comments": comments_payload,
+            "total": len(comments_payload),
+            "exported_at": datetime.now().isoformat()
+        }, ensure_ascii=False, indent=2))
+
+        # Write images
         for poem in poems:
             if poem.image_filename:
                 image_path = os.path.join(UPLOADS_DIR, poem.image_filename)
@@ -265,7 +285,7 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
 
 @router.post("/import/poems")
 async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Import poems and images from a zip archive (admin only)"""
+    """Import poems, images, and comments from a zip archive (admin only)"""
     if not file.filename.lower().endswith(".zip"):
         raise HTTPException(400, "Invalid file format: expected .zip")
 
@@ -281,9 +301,12 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
             if "poems" not in poems_data or not isinstance(poems_data["poems"], list):
                 raise HTTPException(400, "Invalid format: 'poems' array is required")
 
-            imported_count = 0
+            imported_poems = 0
+            imported_comments = 0
             errors = []
+            uuid_to_poem_id = {}
 
+            # Import poems first
             for idx, poem_data in enumerate(poems_data["poems"]):
                 try:
                     if "body" not in poem_data:
@@ -295,8 +318,10 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
                         errors.append(f"Poem #{idx + 1}: missing 'uuid' field")
                         continue
 
-                    if db.query(Poem).filter(Poem.uuid == poem_uuid).first():
+                    existing_poem = db.query(Poem).filter(Poem.uuid == poem_uuid).first()
+                    if existing_poem:
                         errors.append(f"Poem #{idx + 1}: uuid already exists")
+                        uuid_to_poem_id[poem_uuid] = existing_poem.id
                         continue
 
                     poem = Poem(
@@ -336,21 +361,58 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
                                     poem.image_filename = target_filename
 
                     db.add(poem)
-                    imported_count += 1
+                    db.flush()
+                    uuid_to_poem_id[poem_uuid] = poem.id
+                    imported_poems += 1
 
                 except Exception as e:
                     errors.append(f"Poem #{idx + 1}: {str(e)}")
+
+            # Import comments if present
+            if "comments.json" in zipf.namelist():
+                try:
+                    comments_data = json.loads(zipf.read("comments.json").decode("utf-8"))
+                    if "comments" in comments_data and isinstance(comments_data["comments"], list):
+                        for idx, comment_data in enumerate(comments_data["comments"]):
+                            try:
+                                poem_uuid = comment_data.get("poem_uuid")
+                                if not poem_uuid:
+                                    errors.append(f"Comment #{idx + 1}: missing 'poem_uuid' field")
+                                    continue
+
+                                if poem_uuid not in uuid_to_poem_id:
+                                    errors.append(f"Comment #{idx + 1}: poem with uuid {poem_uuid} not found")
+                                    continue
+
+                                if "body" not in comment_data:
+                                    errors.append(f"Comment #{idx + 1}: missing 'body' field")
+                                    continue
+
+                                comment = Comment(
+                                    poem_id=uuid_to_poem_id[poem_uuid],
+                                    author=comment_data.get("author", "Anonymous"),
+                                    body=comment_data["body"],
+                                    created_at=datetime.fromisoformat(comment_data.get("created_at")) if comment_data.get("created_at") else datetime.utcnow()
+                                )
+                                db.add(comment)
+                                imported_comments += 1
+
+                            except Exception as e:
+                                errors.append(f"Comment #{idx + 1}: {str(e)}")
+                except Exception as e:
+                    errors.append(f"Failed to import comments: {str(e)}")
 
             try:
                 db.commit()
             except Exception as e:
                 db.rollback()
-                raise HTTPException(500, f"Failed to save poems: {str(e)}")
+                raise HTTPException(500, f"Failed to save data: {str(e)}")
 
             return {
-                "imported": imported_count,
+                "imported_poems": imported_poems,
+                "imported_comments": imported_comments,
                 "errors": errors,
-                "total_attempted": len(poems_data["poems"])
+                "total_poems_attempted": len(poems_data["poems"])
             }
     except zipfile.BadZipFile:
         raise HTTPException(400, "Invalid zip archive")

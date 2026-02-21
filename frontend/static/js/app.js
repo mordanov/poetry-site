@@ -48,8 +48,6 @@ const I18N = {
     'admin.newPoem': '+ New Poem',
     'admin.exportPoems': '📥 Export Poems',
     'admin.importPoems': '📤 Import Poems',
-    'admin.exportComments': '💬 Export Comments',
-    'admin.importComments': '💬 Import Comments',
     'admin.none': 'No poems yet.',
     'admin.edit': 'Edit',
     'admin.delete': 'Delete',
@@ -138,8 +136,6 @@ const I18N = {
     'admin.newPoem': '+ Новый стих',
     'admin.exportPoems': '📥 Экспорт стихов',
     'admin.importPoems': '📤 Импорт стихов',
-    'admin.exportComments': '💬 Экспорт комментариев',
-    'admin.importComments': '💬 Импорт комментариев',
     'admin.none': 'Пока нет стихов.',
     'admin.edit': 'Редактировать',
     'admin.delete': 'Удалить',
@@ -749,50 +745,12 @@ function showImportPoems() {
         throw new Error(err.detail || 'Import failed');
       }
       const result = await res.json();
-      toast(`Imported ${result.imported} of ${result.total_attempted} poems`);
+      const msg = `Imported ${result.imported_poems} poems and ${result.imported_comments} comments`;
+      toast(msg);
       if (result.errors.length > 0) {
         console.warn('Import errors:', result.errors);
       }
       loadAdminPoems();
-    } catch(e) {
-      toast('Import failed: ' + e.message, true);
-      console.error(e);
-    }
-  };
-  input.click();
-}
-
-// Show import comments dialog
-function showImportComments() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'application/json,.json';
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      if (!data.comments || !Array.isArray(data.comments)) {
-        toast('Invalid file format: expected {comments: [...]}', true);
-        return;
-      }
-
-      if (!confirm(`Import ${data.comments.length} comments? This will add them to existing poems.`)) {
-        return;
-      }
-
-      const result = await apiFetch('/poems/import/comments', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-
-      toast(`Imported ${result.imported} of ${result.total_attempted} comments`);
-      if (result.errors.length > 0) {
-        console.warn('Import errors:', result.errors);
-      }
     } catch(e) {
       toast('Import failed: ' + e.message, true);
       console.error(e);
