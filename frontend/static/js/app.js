@@ -888,6 +888,30 @@ async function loadAboutForm() {
   } catch(e) {}
 }
 
+async function saveAbout(e) {
+  e.preventDefault();
+
+  const name = document.getElementById('about-name').value.trim();
+  const photo_url = document.getElementById('about-photo').value.trim() || null;
+  const bio = document.getElementById('about-bio').value.trim();
+
+  try {
+    await apiFetch('/about', {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: name || null,
+        photo_url: photo_url,
+        bio: bio || null
+      })
+    });
+
+    toast(t('about.saved'));
+    loadAbout();
+  } catch(e) {
+    toast(t('about.saveError'), true);
+  }
+}
+
 function renderPoemCard(p) {
   const image = p.image_url
     ? `<div class="poem-card-image"><img src="${esc(p.image_url)}" alt="${esc(p.title || t('poems.untitled'))}"></div>`
