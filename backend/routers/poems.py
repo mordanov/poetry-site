@@ -97,7 +97,8 @@ def list_tags(db: Session = Depends(get_db)):
     result = []
     for tag in tags:
         count = db.query(func.count(Poem.id)).join(Poem.tags).filter(Tag.id == tag.id).scalar()
-        result.append({"name": tag.name, "count": count})
+        if count > 0:  # Only include tags with at least 1 poem
+            result.append({"name": tag.name, "count": count})
     result.sort(key=lambda x: x["count"], reverse=True)
     return result
 
