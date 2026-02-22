@@ -34,7 +34,13 @@ services:
     volumes:
       - certbot_certs:/etc/letsencrypt
       - certbot_www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: >
+      sh -c "while :; do
+      certbot renew --webroot -w /var/www/certbot &&
+      docker kill -s HUP $$(docker ps -q --filter name=nginx);
+      sleep 12h;
+      done"
 
 volumes:
   backend_data:
