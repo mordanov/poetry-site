@@ -7,7 +7,7 @@ from typing import Optional, List
 from datetime import datetime
 from database import get_db
 from routers.auth import get_current_admin
-from models import Poem, Tag, Comment, Admin
+from models import Poem, Tag, Comment, Admin, PoemVersion
 import io
 import json
 import os
@@ -350,11 +350,27 @@ def create_poem(data: PoemIn, admin: Admin = Depends(get_current_admin), db: Ses
 
 @router.put("/{poem_id}")
 def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Update a poem"""
+    """Update a poem and create a new version"""
     poem = db.query(Poem).filter(Poem.id == poem_id).first()
     if not poem:
         raise HTTPException(404, "Poem not found")
 
+    # Get current version number to create next version
+    last_version = db.query(PoemVersion).filter(PoemVersion.poem_id == poem_id).order_by(PoemVersion.version_number.desc()).first()
+    next_version_number = (last_version.version_number + 1) if last_version else 1
+
+    # Create version from current poem state before updating
+    version = PoemVersion(
+        poem_id=poem_id,
+        version_number=next_version_number,
+        title=poem.title,
+        body=poem.body,
+        image_filename=poem.image_filename
+    )
+    db.add(version)
+    db.flush()
+
+    # Update poem
     if data.title is not None:
         poem.title = data.title
     if data.body is not None:
@@ -519,6 +535,106 @@ async def generate_poem_image(poem_id: int, admin: Admin = Depends(get_current_a
         error_details = traceback.format_exc()
         print(f"[GPT-Image ERROR] {error_details}", file=sys.stderr)
         raise HTTPException(500, f"Failed to generate image: {str(e)}")
+
+# ====== VERSIONS ======
+@router.get("/{poem_id}/versions")
+def get_poem_versions(poem_id: int, db: Session = Depends(get_db)):
+    """Get version history for a poem"""
+    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+    if not poem:
+        raise HTTPException(404, "Poem not found")
+
+    versions = db.query(PoemVersion).filter(PoemVersion.poem_id == poem_id).order_by(PoemVersion.version_number.desc()).all()
+
+    return {
+        "poem_id": poem_id,
+        "current_version": {
+            "version_number": len(versions) + 1,
+            "title": poem.title,
+            "body": poem.body,
+            "image_filename": poem.image_filename,
+            "created_at": poem.updated_at.isoformat(),
+            "is_current": True
+        },
+        "history": [
+            {
+                "version_number": v.version_number,
+                "title": v.title,
+                "body": v.body,
+                "image_filename": v.image_filename,
+                "created_at": v.created_at.isoformat(),
+                "is_current": False
+            }
+            for v in versions
+        ]
+    }
+
+@router.get("/{poem_id}/versions/{version_number}")
+def get_poem_version(poem_id: int, version_number: int, db: Session = Depends(get_db)):
+    """Get a specific version of a poem"""
+    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+    if not poem:
+        raise HTTPException(404, "Poem not found")
+
+    version = db.query(PoemVersion).filter(
+        PoemVersion.poem_id == poem_id,
+        PoemVersion.version_number == version_number
+    ).first()
+
+    if not version:
+        raise HTTPException(404, "Version not found")
+
+    return {
+        "poem_id": poem_id,
+        "version_number": version.version_number,
+        "title": version.title,
+        "body": version.body,
+        "image_filename": version.image_filename,
+        "created_at": version.created_at.isoformat()
+    }
+
+@router.post("/{poem_id}/restore/{version_number}")
+def restore_poem_version(poem_id: int, version_number: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Restore a poem to a previous version"""
+    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+    if not poem:
+        raise HTTPException(404, "Poem not found")
+
+    version = db.query(PoemVersion).filter(
+        PoemVersion.poem_id == poem_id,
+        PoemVersion.version_number == version_number
+    ).first()
+
+    if not version:
+        raise HTTPException(404, "Version not found")
+
+    # Create a new version from current state before restoring
+    last_version = db.query(PoemVersion).filter(PoemVersion.poem_id == poem_id).order_by(PoemVersion.version_number.desc()).first()
+    next_version_number = (last_version.version_number + 1) if last_version else 1
+
+    new_version = PoemVersion(
+        poem_id=poem_id,
+        version_number=next_version_number,
+        title=poem.title,
+        body=poem.body,
+        image_filename=poem.image_filename
+    )
+    db.add(new_version)
+    db.flush()
+
+    # Restore from old version
+    poem.title = version.title
+    poem.body = version.body
+    poem.image_filename = version.image_filename
+
+    db.commit()
+    db.refresh(poem)
+
+    return {
+        "ok": True,
+        "message": f"Restored to version {version_number}",
+        "poem": _poem_to_dict(poem)
+    }
 
 @router.delete("/{poem_id}", status_code=204)
 def delete_poem(poem_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):

@@ -67,6 +67,14 @@ const I18N = {
     'admin.form.imageDeleteError': 'Image delete failed',
     'admin.form.imageGenerateError': 'Image generation failed',
     'admin.form.generateImage': '✨ Generate with AI',
+    'admin.versions.title': 'Version History',
+    'admin.versions.current': 'Current',
+    'admin.versions.restore': 'Restore',
+    'admin.versions.latest': 'Latest',
+    'admin.versions.button': '📜 Version History',
+    'admin.versions.confirmRestore': 'Restore to version {version}?',
+    'admin.versions.restoreError': 'Failed to restore version',
+    'admin.versions.loadError': 'Failed to load version history',
     'admin.form.save': 'Save changes',
     'admin.form.publish': 'Publish',
     'admin.form.cancel': 'Cancel',
@@ -157,6 +165,14 @@ const I18N = {
     'admin.form.imageDeleteError': 'Ошибка удаления картинки',
     'admin.form.imageGenerateError': 'Ошибка генерации картинки',
     'admin.form.generateImage': '✨ Сгенерировать с AI',
+    'admin.versions.title': 'История версий',
+    'admin.versions.current': 'Текущая',
+    'admin.versions.restore': 'Восстановить',
+    'admin.versions.latest': 'Последняя',
+    'admin.versions.button': '📜 История версий',
+    'admin.versions.confirmRestore': 'Восстановить версию {version}?',
+    'admin.versions.restoreError': 'Ошибка восстановления версии',
+    'admin.versions.loadError': 'Ошибка загрузки истории версий',
     'admin.form.save': 'Сохранить',
     'admin.form.publish': 'Опубликовать',
     'admin.form.cancel': 'Отмена',
@@ -623,6 +639,7 @@ function showPoemForm(poem = null) {
       <div id="pf-image-preview">${imagePreview}</div>
       ${removeBtn}
       ${editingPoemId && !poem?.image_url ? `<button class="btn-secondary btn-small" type="button" onclick="generatePoemImage(${editingPoemId})" data-i18n="admin.form.generateImage">✨ Generate with AI</button>` : ''}
+      ${editingPoemId ? `<button class="btn-secondary btn-small" type="button" onclick="showVersionHistory(${editingPoemId})" data-i18n="admin.versions.button">📜 Version History</button>` : ''}
       <div class="poem-form-actions">
         <button class="btn-primary" onclick="savePoem()">${poem ? t('admin.form.save') : t('admin.form.publish')}</button>
         <button class="btn-secondary" onclick="closePoemForm()">${t('admin.form.cancel')}</button>
@@ -736,6 +753,66 @@ async function deletePoem(poemId) {
     loadAdminPoems();
   } catch(e) {
     toast(t('admin.deleteError'), true);
+  }
+}
+
+// Version history
+async function showVersionHistory(poemId) {
+  try {
+    const data = await apiFetch(`/poems/${poemId}/versions`);
+    const modal = document.createElement('div');
+    modal.className = 'version-history-modal';
+    modal.innerHTML = `
+      <div class="modal version-history" style="display: block; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 600px; max-height: 80vh; overflow-y: auto;">
+        <h2 style="font-size:1.3rem;margin-bottom:1.5rem" data-i18n="admin.versions.title">${t('admin.versions.title')}</h2>
+        <button class="btn-secondary" style="position:absolute;top:1rem;right:1rem;padding:0.4rem 0.8rem;font-size:0.9rem" onclick="this.closest('.version-history-modal').remove();document.querySelector('.version-history-overlay').remove()">✕</button>
+        ${renderVersionsList(data)}
+      </div>
+    `;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay version-history-overlay';
+    overlay.style.display = 'block';
+    overlay.onclick = () => { modal.remove(); overlay.remove(); };
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(modal);
+  } catch(e) {
+    toast(t('admin.versions.loadError'), true);
+  }
+}
+
+function renderVersionsList(data) {
+  const versions = [data.current_version, ...data.history];
+  return `
+    <div style="display:grid;gap:1rem">
+      ${versions.map(v => `
+        <div style="border:1px solid var(--border);padding:1rem;border-radius:2px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
+            <span style="font-weight:500;font-size:0.9rem">Version ${v.version_number}${v.is_current ? ` <span data-i18n="admin.versions.current">(${t('admin.versions.current')})</span>` : ''}</span>
+            <span style="font-size:0.8rem;color:var(--muted)">${new Date(v.created_at).toLocaleDateString()} ${new Date(v.created_at).toLocaleTimeString()}</span>
+          </div>
+          <div style="margin-bottom:0.8rem;padding:0.8rem;background:var(--parchment);border-radius:2px;font-size:0.9rem;max-height:120px;overflow-y:auto">
+            <strong>${v.title || '— untitled —'}</strong>
+            <div style="font-style:italic;color:var(--muted);white-space:pre-wrap;margin-top:0.4rem">${v.body.slice(0, 200)}</div>
+          </div>
+          ${!v.is_current ? `<button class="btn-secondary btn-small" onclick="restoreVersion(${data.poem_id}, ${v.version_number})" data-i18n="admin.versions.restore">${t('admin.versions.restore')}</button>` : `<span style="color:var(--muted);font-size:0.9rem" data-i18n="admin.versions.latest">${t('admin.versions.latest')}</span>`}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function restoreVersion(poemId, versionNumber) {
+  if (!confirm(t('admin.versions.confirmRestore', { version: versionNumber }))) return;
+
+  try {
+    const result = await apiFetch(`/poems/${poemId}/restore/${versionNumber}`, { method: 'POST' });
+    toast(result.message);
+    document.querySelectorAll('.version-history-modal, .version-history-overlay').forEach(el => el.remove());
+    openEditPoem(poemId);
+  } catch(e) {
+    toast(t('admin.versions.restoreError'), true);
   }
 }
 

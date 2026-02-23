@@ -70,6 +70,12 @@ class Poem(Base):
         back_populates="poem",
         cascade="all, delete-orphan"
     )
+    versions = relationship(
+        "PoemVersion",
+        back_populates="poem",
+        cascade="all, delete-orphan",
+        order_by="PoemVersion.version_number.desc()"
+    )
 
     def __repr__(self):
         return f"<Poem(title='{self.title[:50]}...')>"
@@ -108,3 +114,28 @@ class Comment(Base):
 
     def __repr__(self):
         return f"<Comment(author='{self.author}', poem_id={self.poem_id})>"
+
+
+class PoemVersion(Base):
+    """Poem version history model - tracks all edits"""
+    __tablename__ = "poem_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    poem_id = Column(Integer, ForeignKey('poems.id', ondelete='CASCADE'), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False)  # Sequential version number
+    title = Column(String(500), nullable=False, default='')
+    body = Column(Text, nullable=False)
+    image_filename = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
+
+    # Relationships
+    poem = relationship("Poem", back_populates="versions")
+
+    __table_args__ = (
+        UniqueConstraint('poem_id', 'version_number', name='uq_poem_version'),
+    )
+
+    def __repr__(self):
+        return f"<PoemVersion(poem_id={self.poem_id}, version={self.version_number})>"
+
+
