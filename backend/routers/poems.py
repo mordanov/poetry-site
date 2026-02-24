@@ -41,6 +41,7 @@ class PoemOut(BaseModel):
     created_at: str
     updated_at: str
     tags: List[str]
+    comment_count: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -50,8 +51,8 @@ def _image_url(poem: Poem) -> Optional[str]:
         return None
     return f"/uploads/poems/{poem.image_filename}"
 
-def _poem_to_dict(poem: Poem) -> dict:
-    return {
+def _poem_to_dict(poem: Poem, comment_count: Optional[int] = None) -> dict:
+    payload = {
         "id": poem.id,
         "uuid": poem.uuid,
         "title": poem.title,
@@ -61,6 +62,9 @@ def _poem_to_dict(poem: Poem) -> dict:
         "updated_at": poem.updated_at.isoformat(),
         "tags": [t.name for t in poem.tags]
     }
+    if comment_count is not None:
+        payload["comment_count"] = comment_count
+    return payload
 
 # ====== LIST & FILTER ======
 @router.get("")
@@ -82,8 +86,18 @@ def list_poems(
     offset = (page - 1) * limit
     poems = query.offset(offset).limit(limit).all()
 
+    poem_ids = [poem.id for poem in poems]
+    comment_counts = {}
+    if poem_ids:
+        comment_counts = dict(
+            db.query(Comment.poem_id, func.count(Comment.id))
+            .filter(Comment.poem_id.in_(poem_ids))
+            .group_by(Comment.poem_id)
+            .all()
+        )
+
     return {
-        "poems": [_poem_to_dict(poem) for poem in poems],
+        "poems": [_poem_to_dict(poem, comment_counts.get(poem.id, 0)) for poem in poems],
         "total": total,
         "page": page,
         "limit": limit,

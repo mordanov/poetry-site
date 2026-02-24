@@ -993,8 +993,12 @@ function renderPoemCard(p) {
   const image = p.image_url
     ? `<div class="poem-card-image"><img src="${esc(p.image_url)}" alt="${esc(p.title || t('poems.untitled'))}"></div>`
     : '';
+  const commentBadge = p.comment_count > 0
+    ? `<div class="poem-card-comments">${p.comment_count}</div>`
+    : '';
   return `
     <div class="poem-card" onclick="navigate('poem', true, '${esc(p.uuid)}')">
+      ${commentBadge}
       ${image}
       <div class="poem-card-title ${!p.title ? 'untitled' : ''}">${p.title || t('poems.untitled')}</div>
       <div class="poem-card-preview">${esc(p.body.slice(0, 200))}</div>
