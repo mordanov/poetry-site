@@ -1,6 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import os
@@ -11,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import init_db
-from routers import poems, about, comments, auth
+from routers import poems, about, comments, auth, webhooks
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
