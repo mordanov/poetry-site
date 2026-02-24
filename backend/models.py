@@ -55,6 +55,7 @@ class Poem(Base):
     title = Column(String(500), nullable=False, default='')
     body = Column(Text, nullable=False)
     image_filename = Column(String(255), nullable=True)
+    generation_id = Column(String(255), nullable=True, unique=True, index=True)
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -137,5 +138,3 @@ class PoemVersion(Base):
 
     def __repr__(self):
         return f"<PoemVersion(poem_id={self.poem_id}, version={self.version_number})>"
-
-

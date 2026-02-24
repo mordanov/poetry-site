@@ -458,13 +458,11 @@ def delete_poem_image(poem_id: int, admin: Admin = Depends(get_current_admin), d
 
 @router.post("/{poem_id}/generate-image")
 async def generate_poem_image(poem_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Generate an image for a poem using GPT Image 1 (admin only)"""
+    """Generate an image for a poem using Leonardo.AI (admin only)"""
     try:
-        from openai import OpenAI
-        from PIL import Image
         import requests
     except ImportError as e:
-        raise HTTPException(500, f"Missing dependencies: {str(e)}. Install: pip install openai Pillow requests")
+        raise HTTPException(500, f"Missing dependencies: {str(e)}. Install: pip install requests")
 
     try:
         poem = db.query(Poem).filter(Poem.id == poem_id).first()
@@ -474,81 +472,71 @@ async def generate_poem_image(poem_id: int, admin: Admin = Depends(get_current_a
         if poem.image_filename:
             raise HTTPException(400, "Poem already has an image. Delete it first if you want to generate a new one.")
 
-        openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
-        base_prompt = os.getenv("OPENAI_IMAGE_PROMPT", "Create an artistic illustration inspired by this poem.")
+        leonardo_api_key = os.getenv("LEONARDO_API_KEY", "").strip()
+        base_prompt = os.getenv("LEONARDO_IMAGE_PROMPT", "Create an artistic illustration inspired by this poem.")
+        webhook_url = os.getenv("LEONARDO_WEBHOOK_URL", "").strip()
 
-        if not openai_api_key:
-            raise HTTPException(500, "OpenAI API key not configured. Set OPENAI_API_KEY in .env")
+        if not leonardo_api_key:
+            raise HTTPException(500, "Leonardo.AI API key not configured. Set LEONARDO_API_KEY in .env")
 
-        if not openai_api_key.startswith("sk-"):
-            raise HTTPException(500, "OpenAI API key format invalid. Should start with 'sk-'")
+        if not webhook_url:
+            raise HTTPException(500, "Leonardo webhook URL not configured. Set LEONARDO_WEBHOOK_URL in .env")
 
-        prompt = f"{base_prompt}\n{poem.body[:500]}"
+        prompt = f"{base_prompt}\n---\n{poem.body[:500]}"
 
-        print(f"[GPT-Image] Generating image for poem {poem.id} ({poem.uuid})", file=sys.stderr)
-        print(f"[GPT-Image] Prompt: {prompt}...", file=sys.stderr)
+        print(f"[Leonardo] Initiating image generation for poem {poem.id} ({poem.uuid})", file=sys.stderr)
+        print(f"[Leonardo] Prompt: {prompt}...", file=sys.stderr)
 
-        client = OpenAI(api_key=openai_api_key)
+        # Leonardo.AI API endpoint for image generation
+        url = "https://api.leonardo.ai/rest/v1/generations"
+        headers = {
+            "Authorization": f"Bearer {leonardo_api_key}",
+            "Content-Type": "application/json"
+        }
 
-        response = client.images.generate(
-            model="gpt-image-1",
-            prompt=prompt,
-            n=1,
-            size="1024x1024"
-        )
+        payload = {
+            "prompt": prompt,
+            "num_images": 1,
+            "width": 512,
+            "height": 512,
+            "quality": "medium",
+            "webhook_url": webhook_url
+        }
 
-        if not response.data or len(response.data) == 0:
-            raise HTTPException(500, "No image generated from OpenAI")
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
 
-        image_data = response.data[0]
-        image_url = None
-        print(f"[GPT-Image] Response data: {image_data}", file=sys.stderr)
+        if response.status_code != 200:
+            error_msg = response.text
+            print(f"[Leonardo ERROR] Status {response.status_code}: {error_msg}", file=sys.stderr)
+            raise HTTPException(500, f"Leonardo.AI API error: {error_msg}")
 
-        if hasattr(image_data, 'url') and image_data.url:
-            image_url = image_data.url
-        elif hasattr(image_data, 'b64_json') and image_data.b64_json:
-            image_bytes = base64.b64decode(image_data.b64_json)
-            img = Image.open(io.BytesIO(image_bytes))
-        else:
-            print(f"[GPT-Image ERROR] Unexpected response format: {image_data}", file=sys.stderr)
-            raise HTTPException(500, f"Unexpected response format from OpenAI API")
+        result = response.json()
+        generation_id = result.get("sdGenerationJob", {}).get("generationId")
 
-        if image_url:
-            print(f"[GPT-Image] Generated image URL: {image_url[:50]}...", file=sys.stderr)
-            img_response = requests.get(image_url, timeout=30)
-            if img_response.status_code != 200:
-                raise HTTPException(500, f"Failed to download generated image (status {img_response.status_code})")
-            img = Image.open(io.BytesIO(img_response.content))
+        if not generation_id:
+            print(f"[Leonardo ERROR] No generation ID in response: {result}", file=sys.stderr)
+            raise HTTPException(500, "Failed to get generation ID from Leonardo.AI")
 
-        print(f"[GPT-Image] Original image size: {img.width}x{img.height}", file=sys.stderr)
+        print(f"[Leonardo] Generation initiated with ID: {generation_id}", file=sys.stderr)
 
-        compressed_size = (int(img.width * 0.5), int(img.height * 0.5))
-        img = img.resize(compressed_size, Image.Resampling.LANCZOS)
-        print(f"[GPT-Image] Compressed image size: {img.width}x{img.height}", file=sys.stderr)
-
-        os.makedirs(UPLOADS_DIR, exist_ok=True)
-        filename = f"{poem.uuid}.jpg"
-        file_path = os.path.join(UPLOADS_DIR, filename)
-
-        img.save(file_path, "JPEG", quality=75, optimize=True)
-        print(f"[GPT-Image] Saved to: {file_path}", file=sys.stderr)
-
-        poem.image_filename = filename
+        # Store generation_id in poem for webhook lookup
+        poem.generation_id = generation_id
         db.commit()
         db.refresh(poem)
 
         return {
             "ok": True,
-            "image_url": _image_url(poem),
-            "message": f"Generated and compressed image for poem '{poem.title or 'untitled'}'"
+            "generation_id": generation_id,
+            "status": "processing",
+            "message": f"Image generation started for poem '{poem.title or 'untitled'}'. Please wait..."
         }
 
     except HTTPException:
         raise
     except Exception as e:
         error_details = traceback.format_exc()
-        print(f"[GPT-Image ERROR] {error_details}", file=sys.stderr)
-        raise HTTPException(500, f"Failed to generate image: {str(e)}")
+        print(f"[Leonardo ERROR] {error_details}", file=sys.stderr)
+        raise HTTPException(500, f"Failed to initiate image generation: {str(e)}")
 
 # ====== VERSIONS ======
 @router.get("/{poem_id}/versions")

@@ -836,39 +836,85 @@ async function generatePoemImage(poemId) {
 
   try {
     btn.disabled = true;
-    btn.textContent = '⏳ Generating...';
+    btn.textContent = '⏳ Initiating...';
 
-    console.log(`[AI] Generating image for poem ${poemId}...`);
+    console.log(`[Leonardo] Initiating image generation for poem ${poemId}...`);
 
     const res = await fetch(API + `/poems/${poemId}/generate-image`, {
       method: 'POST',
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
 
-    console.log(`[AI] Response status: ${res.status}`);
+    console.log(`[Leonardo] Response status: ${res.status}`);
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      console.error(`[AI] Error response:`, err);
+      console.error(`[Leonardo] Error response:`, err);
       throw new Error(err.detail || `HTTP ${res.status}`);
     }
 
     const result = await res.json();
-    console.log(`[AI] Generation successful:`, result);
+    console.log(`[Leonardo] Generation initiated:`, result);
 
-    // Update preview with generated image
-    const preview = document.getElementById('pf-image-preview');
-    preview.innerHTML = `<div class="poem-image-preview"><img src="${result.image_url}" alt="generated"></div>`;
+    btn.textContent = '⏳ Processing...';
+    toast(result.message || '✨ Image generation initiated. Waiting for completion...');
 
-    toast(result.message || '✨ Image generated successfully');
+    // Poll for completion
+    await pollForImageCompletion(poemId, result.generation_id, btn, originalText);
 
   } catch(e) {
-    console.error(`[AI] Generation failed:`, e);
+    console.error(`[Leonardo] Generation failed:`, e);
     toast(t('admin.form.imageGenerateError') + ': ' + e.message, true);
-  } finally {
     btn.disabled = false;
     btn.textContent = originalText;
   }
+}
+
+async function pollForImageCompletion(poemId, generationId, btn, originalText) {
+  const maxAttempts = 120; // 10 minutes with 5-second intervals
+  let attempt = 0;
+
+  const poll = async () => {
+    attempt++;
+    console.log(`[Leonardo] Polling attempt ${attempt}/${maxAttempts}`);
+
+    try {
+      const res = await fetch(API + `/poems/${poemId}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch poem');
+
+      const poem = await res.json();
+
+      // If image was generated, update the preview
+      if (poem.image_url && !poem.image_url.includes('undefined')) {
+        console.log(`[Leonardo] Image generated! URL: ${poem.image_url}`);
+        const preview = document.getElementById('pf-image-preview');
+        if (preview) {
+          preview.innerHTML = `<div class="poem-image-preview"><img src="${poem.image_url}" alt="generated"></div>`;
+        }
+        toast('✨ Image generated successfully!');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+
+      // Keep polling
+      if (attempt < maxAttempts) {
+        setTimeout(poll, 5000);
+      } else {
+        throw new Error('Image generation timed out');
+      }
+    } catch(e) {
+      console.error(`[Leonardo] Poll error:`, e);
+      toast('Generation still processing... Check back later.', false);
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  };
+
+  poll();
 }
 
 // Export poems to JSON

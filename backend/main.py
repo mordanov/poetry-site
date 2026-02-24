@@ -37,6 +37,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(poems.router, prefix="/api/poems", tags=["poems"])
 app.include_router(about.router, prefix="/api/about", tags=["about"])
 app.include_router(comments.router, prefix="/api/comments", tags=["comments"])
+app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 
 @app.get("/api/health")
 def health():
