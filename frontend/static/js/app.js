@@ -65,8 +65,6 @@ const I18N = {
     'admin.form.imageTooLarge': 'Image is too large (max 1MB)',
     'admin.form.imageUploadError': 'Image upload failed',
     'admin.form.imageDeleteError': 'Image delete failed',
-    'admin.form.imageGenerateError': 'Image generation failed',
-    'admin.form.generateImage': '✨ Generate with AI',
     'admin.versions.title': 'Version History',
     'admin.versions.current': 'Current',
     'admin.versions.restore': 'Restore',
@@ -163,8 +161,6 @@ const I18N = {
     'admin.form.imageTooLarge': 'Картинка слишком большая (макс. 1MB)',
     'admin.form.imageUploadError': 'Ошибка загрузки картинки',
     'admin.form.imageDeleteError': 'Ошибка удаления картинки',
-    'admin.form.imageGenerateError': 'Ошибка генерации картинки',
-    'admin.form.generateImage': '✨ Сгенерировать с AI',
     'admin.versions.title': 'История версий',
     'admin.versions.current': 'Текущая',
     'admin.versions.restore': 'Восстановить',
@@ -638,7 +634,6 @@ function showPoemForm(poem = null) {
       </label>
       <div id="pf-image-preview">${imagePreview}</div>
       ${removeBtn}
-      ${editingPoemId && !poem?.image_url ? `<button class="btn-secondary btn-small" type="button" onclick="generatePoemImage(${editingPoemId})" data-i18n="admin.form.generateImage">✨ Generate with AI</button>` : ''}
       ${editingPoemId ? `<button class="btn-secondary btn-small" type="button" onclick="showVersionHistory(${editingPoemId})" data-i18n="admin.versions.button">📜 Version History</button>` : ''}
       <div class="poem-form-actions">
         <button class="btn-primary" onclick="savePoem()">${poem ? t('admin.form.save') : t('admin.form.publish')}</button>
@@ -830,92 +825,6 @@ function previewPoemImage(event) {
   reader.readAsDataURL(file);
 }
 
-async function generatePoemImage(poemId) {
-  const btn = event.target;
-  const originalText = btn.textContent;
-
-  try {
-    btn.disabled = true;
-    btn.textContent = '⏳ Initiating...';
-
-    console.log(`[Leonardo] Initiating image generation for poem ${poemId}...`);
-
-    const res = await fetch(API + `/poems/${poemId}/generate-image`, {
-      method: 'POST',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-
-    console.log(`[Leonardo] Response status: ${res.status}`);
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      console.error(`[Leonardo] Error response:`, err);
-      throw new Error(err.detail || `HTTP ${res.status}`);
-    }
-
-    const result = await res.json();
-    console.log(`[Leonardo] Generation initiated:`, result);
-
-    btn.textContent = '⏳ Processing...';
-    toast(result.message || '✨ Image generation initiated. Waiting for completion...');
-
-    // Poll for completion
-    await pollForImageCompletion(poemId, result.generation_id, btn, originalText);
-
-  } catch(e) {
-    console.error(`[Leonardo] Generation failed:`, e);
-    toast(t('admin.form.imageGenerateError') + ': ' + e.message, true);
-    btn.disabled = false;
-    btn.textContent = originalText;
-  }
-}
-
-async function pollForImageCompletion(poemId, generationId, btn, originalText) {
-  const maxAttempts = 120; // 10 minutes with 5-second intervals
-  let attempt = 0;
-
-  const poll = async () => {
-    attempt++;
-    console.log(`[Leonardo] Polling attempt ${attempt}/${maxAttempts}`);
-
-    try {
-      const res = await fetch(API + `/poems/${poemId}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch poem');
-
-      const poem = await res.json();
-
-      // If image was generated, update the preview
-      if (poem.image_url && !poem.image_url.includes('undefined')) {
-        console.log(`[Leonardo] Image generated! URL: ${poem.image_url}`);
-        const preview = document.getElementById('pf-image-preview');
-        if (preview) {
-          preview.innerHTML = `<div class="poem-image-preview"><img src="${poem.image_url}" alt="generated"></div>`;
-        }
-        toast('✨ Image generated successfully!');
-        btn.disabled = false;
-        btn.textContent = originalText;
-        return;
-      }
-
-      // Keep polling
-      if (attempt < maxAttempts) {
-        setTimeout(poll, 5000);
-      } else {
-        throw new Error('Image generation timed out');
-      }
-    } catch(e) {
-      console.error(`[Leonardo] Poll error:`, e);
-      toast('Generation still processing... Check back later.', false);
-      btn.disabled = false;
-      btn.textContent = originalText;
-    }
-  };
-
-  poll();
-}
 
 // Export poems to JSON
 async function exportPoems() {

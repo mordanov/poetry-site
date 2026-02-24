@@ -14,7 +14,6 @@ import os
 import zipfile
 import sys
 import traceback
-import base64
 
 router = APIRouter()
 
@@ -456,87 +455,7 @@ def delete_poem_image(poem_id: int, admin: Admin = Depends(get_current_admin), d
 
     return {"ok": True}
 
-@router.post("/{poem_id}/generate-image")
-async def generate_poem_image(poem_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Generate an image for a poem using Leonardo.AI (admin only)"""
-    try:
-        import requests
-    except ImportError as e:
-        raise HTTPException(500, f"Missing dependencies: {str(e)}. Install: pip install requests")
 
-    try:
-        poem = db.query(Poem).filter(Poem.id == poem_id).first()
-        if not poem:
-            raise HTTPException(404, "Poem not found")
-
-        if poem.image_filename:
-            raise HTTPException(400, "Poem already has an image. Delete it first if you want to generate a new one.")
-
-        leonardo_api_key = os.getenv("LEONARDO_API_KEY", "").strip()
-        base_prompt = os.getenv("LEONARDO_IMAGE_PROMPT", "Create an artistic illustration inspired by this poem.")
-        webhook_url = os.getenv("LEONARDO_WEBHOOK_URL", "").strip()
-
-        if not leonardo_api_key:
-            raise HTTPException(500, "Leonardo.AI API key not configured. Set LEONARDO_API_KEY in .env")
-
-        if not webhook_url:
-            raise HTTPException(500, "Leonardo webhook URL not configured. Set LEONARDO_WEBHOOK_URL in .env")
-
-        prompt = f"{base_prompt}\n---\n{poem.body[:500]}"
-
-        print(f"[Leonardo] Initiating image generation for poem {poem.id} ({poem.uuid})", file=sys.stderr)
-        print(f"[Leonardo] Prompt: {prompt}...", file=sys.stderr)
-
-        # Leonardo.AI API endpoint for image generation
-        url = "https://api.leonardo.ai/rest/v1/generations"
-        headers = {
-            "Authorization": f"Bearer {leonardo_api_key}",
-            "Content-Type": "application/json"
-        }
-
-        payload = {
-            "prompt": prompt,
-            "num_images": 1,
-            "width": 512,
-            "height": 512,
-            "quality": "medium",
-            "webhook_url": webhook_url
-        }
-
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-
-        if response.status_code != 200:
-            error_msg = response.text
-            print(f"[Leonardo ERROR] Status {response.status_code}: {error_msg}", file=sys.stderr)
-            raise HTTPException(500, f"Leonardo.AI API error: {error_msg}")
-
-        result = response.json()
-        generation_id = result.get("sdGenerationJob", {}).get("generationId")
-
-        if not generation_id:
-            print(f"[Leonardo ERROR] No generation ID in response: {result}", file=sys.stderr)
-            raise HTTPException(500, "Failed to get generation ID from Leonardo.AI")
-
-        print(f"[Leonardo] Generation initiated with ID: {generation_id}", file=sys.stderr)
-
-        # Store generation_id in poem for webhook lookup
-        poem.generation_id = generation_id
-        db.commit()
-        db.refresh(poem)
-
-        return {
-            "ok": True,
-            "generation_id": generation_id,
-            "status": "processing",
-            "message": f"Image generation started for poem '{poem.title or 'untitled'}'. Please wait..."
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        error_details = traceback.format_exc()
-        print(f"[Leonardo ERROR] {error_details}", file=sys.stderr)
-        raise HTTPException(500, f"Failed to initiate image generation: {str(e)}")
 
 # ====== VERSIONS ======
 @router.get("/{poem_id}/versions")
