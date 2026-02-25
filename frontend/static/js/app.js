@@ -152,7 +152,6 @@ const I18N = {
     'admin.importPoems': '📤 Импорт стихов',
     'admin.comments.none': 'Размышлений пока нет.',
     'admin.comments.viewPoem': 'Смотреть стих',
-    'admin.importPoems': '📤 Импорт стихов',
     'admin.none': 'Пока нет стихов.',
     'admin.edit': 'Редактировать',
     'admin.delete': 'Удалить',
@@ -557,13 +556,38 @@ async function addComment(e, poemId) {
 }
 
 async function deleteComment(commentId, poemId) {
+  console.log('[Comment] Deleting comment:', commentId, 'from poem:', poemId);
   if (!confirm(t('comments.deleteConfirm'))) return;
   try {
     await apiFetch(`/comments/${commentId}`, { method: 'DELETE' });
+    if (!poemId) {
+      console.warn('[Comment] poemId is undefined!');
+      return;
+    }
     const comments = await apiFetch(`/comments/${poemId}`);
     document.getElementById('comments-list').innerHTML = renderComments(comments, poemId);
     toast(t('comments.deleted'));
-  } catch(e) { toast(t('generic.error'), true); }
+  } catch(e) {
+    console.error('[Comment] Error:', e);
+    toast(t('generic.error'), true);
+  }
+}
+
+async function deleteCommentFromAdmin(commentId) {
+  console.log('[Admin] Deleting comment:', commentId);
+  if (!confirm(t('comments.deleteConfirm'))) return;
+  try {
+    console.log('[Admin] Sending DELETE request for comment:', commentId);
+    const response = await apiFetch(`/comments/${commentId}`, { method: 'DELETE' });
+    console.log('[Admin] Delete response:', response);
+    toast(t('comments.deleted'));
+    console.log('[Admin] Reloading comments list...');
+    await loadAdminComments();
+    console.log('[Admin] Comments list reloaded');
+  } catch(e) {
+    console.error('[Admin] Error deleting comment:', e);
+    toast(t('generic.error'), true);
+  }
 }
 
 // ─── ABOUT ────────────────────────────────────────────────────────────────────
@@ -624,7 +648,9 @@ async function loadAdminPoems() {
 // Admin comments list
 async function loadAdminComments() {
   try {
+    console.log('[Admin] Loading all comments...');
     const comments = await apiFetch('/comments/admin/all');
+    console.log('[Admin] Loaded comments:', comments.length);
     const list = document.getElementById('admin-comments-list');
     if (!comments.length) {
       list.innerHTML = `<p style="color:var(--muted);font-style:italic;padding:1rem 0">${t('admin.comments.none')}</p>`;
@@ -641,11 +667,14 @@ async function loadAdminComments() {
           <a href="/poems/${c.poem_uuid}" onclick="navigate('poems');setTimeout(()=>loadPoem('${c.poem_uuid}'),100)" class="admin-comment-poem-link">
             📖 ${esc(c.poem_title)} →
           </a>
-          <button class="btn-danger btn-small" onclick="deleteComment(${c.id})">${t('admin.delete')}</button>
+          <button class="btn-danger btn-small" onclick="deleteCommentFromAdmin(${c.id})">${t('admin.delete')}</button>
         </div>
       </div>
     `).join('');
-  } catch(e) { console.error(e); }
+    console.log('[Admin] Comments list updated');
+  } catch(e) {
+    console.error('[Admin] Error loading comments:', e);
+  }
 }
 
 // Show new poem form
