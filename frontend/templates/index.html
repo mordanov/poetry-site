@@ -82,6 +82,7 @@
       <h1 data-i18n="admin.title">Admin</h1>
       <div class="admin-tabs">
         <button class="tab active" onclick="adminTab('poems')" data-i18n="admin.tabs.poems">Poems</button>
+        <button class="tab" onclick="adminTab('comments')" data-i18n="admin.tabs.comments">Comments</button>
         <button class="tab" onclick="adminTab('about')" data-i18n="admin.tabs.about">About Page</button>
         <button class="tab" onclick="adminTab('password')" data-i18n="admin.tabs.password">Password</button>
       </div>
@@ -93,6 +94,9 @@
         </div>
         <div id="admin-poem-form" style="display:none"></div>
         <div id="admin-poems-list" class="admin-list"></div>
+      </div>
+      <div id="admin-comments" class="admin-panel" style="display:none">
+        <div id="admin-comments-list" class="admin-list"></div>
       </div>
       <div id="admin-about" class="admin-panel" style="display:none">
         <form id="about-form" onsubmit="saveAbout(event)">

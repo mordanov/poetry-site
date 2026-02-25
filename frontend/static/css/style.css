@@ -534,6 +534,60 @@ t.nav-right {
 .admin-poem-item-tags { display:flex; gap:.3rem; flex-wrap:wrap; }
 .admin-poem-item-actions { display: flex; gap: .5rem; margin-left: auto; }
 
+/* ADMIN COMMENTS */
+.admin-comment-item {
+  background: var(--parchment);
+  border: 1px solid var(--border);
+  padding: 1.2rem 1.5rem;
+  margin-bottom: .8rem;
+}
+.admin-comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.admin-comment-author {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--gold);
+}
+.admin-comment-date {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.admin-comment-body {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink);
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+}
+.admin-comment-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.admin-comment-poem-link {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--rust);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.admin-comment-poem-link:hover {
+  color: var(--gold);
+}
+
 /* POEM FORM */
 .poem-form { background: var(--parchment); border: 1px solid var(--border); padding: 2rem; margin: 1rem 0 2rem; }
 

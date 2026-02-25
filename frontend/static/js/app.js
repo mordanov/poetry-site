@@ -31,9 +31,9 @@ const I18N = {
     'comments.post': 'Post',
     'comments.anonymous': 'Anonymous',
     'comments.posted': 'Reflection posted',
-    'comments.postError': 'Error posting comment',
-    'comments.deleteConfirm': 'Delete this comment?',
-    'comments.deleted': 'Comment deleted',
+    'comments.postError': 'Error posting reflection',
+    'comments.deleteConfirm': 'Delete this reflection?',
+    'comments.deleted': 'Reflection deleted',
     'about.edit': 'Edit page',
     'about.nameLabel': 'Your Name',
     'about.photoLabel': 'Photo URL',
@@ -44,10 +44,13 @@ const I18N = {
     'admin.title': 'Admin',
     'admin.tabs.poems': 'Poems',
     'admin.tabs.about': 'About Page',
+    'admin.tabs.comments': 'Reflections',
     'admin.tabs.password': 'Password',
     'admin.newPoem': '+ New Poem',
     'admin.exportPoems': '📥 Export Poems',
     'admin.importPoems': '📤 Import Poems',
+    'admin.comments.none': 'No reflectiond yet.',
+    'admin.comments.viewPoem': 'View Poem',
     'admin.none': 'No poems yet.',
     'admin.edit': 'Edit',
     'admin.delete': 'Delete',
@@ -83,7 +86,7 @@ const I18N = {
     'admin.poemPublished': 'Poem published',
     'admin.loadError': 'Error loading poem',
     'admin.saveError': 'Error saving poem',
-    'admin.deleteConfirm': 'Delete this poem and all its comments?',
+    'admin.deleteConfirm': 'Delete this poem and all its reflections?',
     'admin.deleted': 'Poem deleted',
     'admin.deleteError': 'Error deleting poem',
     'auth.title': 'Admin Login',
@@ -130,8 +133,8 @@ const I18N = {
     'comments.anonymous': 'Аноним',
     'comments.posted': 'Размышление опубликовано',
     'comments.postError': 'Ошибка при отправке',
-    'comments.deleteConfirm': 'Удалить этот комментарий?',
-    'comments.deleted': 'Комментарий удален',
+    'comments.deleteConfirm': 'Удалить это размышление?',
+    'comments.deleted': 'Размышление удалено',
     'about.edit': 'Редактировать',
     'about.nameLabel': 'Ваше имя',
     'about.photoLabel': 'URL фото',
@@ -142,9 +145,13 @@ const I18N = {
     'admin.title': 'Админ',
     'admin.tabs.poems': 'Стихи',
     'admin.tabs.about': 'Страница "Об авторе"',
+    'admin.tabs.comments': 'Размышления',
     'admin.tabs.password': 'Пароль',
     'admin.newPoem': '+ Новый стих',
     'admin.exportPoems': '📥 Экспорт стихов',
+    'admin.importPoems': '📤 Импорт стихов',
+    'admin.comments.none': 'Размышлений пока нет.',
+    'admin.comments.viewPoem': 'Смотреть стих',
     'admin.importPoems': '📤 Импорт стихов',
     'admin.none': 'Пока нет стихов.',
     'admin.edit': 'Редактировать',
@@ -181,7 +188,7 @@ const I18N = {
     'admin.poemPublished': 'Стих опубликован',
     'admin.loadError': 'Ошибка загрузки стиха',
     'admin.saveError': 'Ошибка сохранения',
-    'admin.deleteConfirm': 'Удалить стих и все комментарии?',
+    'admin.deleteConfirm': 'Удалить стих и все размышления?',
     'admin.deleted': 'Стих удален',
     'admin.deleteError': 'Ошибка удаления',
     'auth.title': 'Вход администратора',
@@ -585,6 +592,9 @@ function adminTab(name) {
   document.querySelectorAll('.admin-panel').forEach(p => p.style.display = 'none');
   event.target.classList.add('active');
   document.getElementById(`admin-${name}`).style.display = '';
+  if (name === 'comments') {
+    loadAdminComments();
+  }
 }
 
 // Admin poems list
@@ -605,6 +615,33 @@ async function loadAdminPoems() {
         <div class="admin-poem-item-actions">
           <button class="btn-secondary" onclick="openEditPoem(${p.id})">${t('admin.edit')}</button>
           <button class="btn-danger" onclick="deletePoem(${p.id})">${t('admin.delete')}</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+// Admin comments list
+async function loadAdminComments() {
+  try {
+    const comments = await apiFetch('/comments/admin/all');
+    const list = document.getElementById('admin-comments-list');
+    if (!comments.length) {
+      list.innerHTML = `<p style="color:var(--muted);font-style:italic;padding:1rem 0">${t('admin.comments.none')}</p>`;
+      return;
+    }
+    list.innerHTML = comments.map(c => `
+      <div class="admin-comment-item">
+        <div class="admin-comment-header">
+          <span class="admin-comment-author">${esc(c.author)}</span>
+          <span class="admin-comment-date">${fmtDate(c.created_at)}</span>
+        </div>
+        <div class="admin-comment-body">${esc(c.body)}</div>
+        <div class="admin-comment-footer">
+          <a href="/poems/${c.poem_uuid}" onclick="navigate('poems');setTimeout(()=>loadPoem('${c.poem_uuid}'),100)" class="admin-comment-poem-link">
+            📖 ${esc(c.poem_title)} →
+          </a>
+          <button class="btn-danger btn-small" onclick="deleteComment(${c.id})">${t('admin.delete')}</button>
         </div>
       </div>
     `).join('');

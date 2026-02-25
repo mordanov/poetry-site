@@ -13,6 +13,26 @@ class CommentIn(BaseModel):
     author: Optional[str] = "Anonymous"
     body: str
 
+@router.get("/admin/all")
+def get_all_comments(admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Get all comments for admin with poem information"""
+    comments = db.query(Comment).join(Poem).order_by(desc(Comment.created_at)).all()
+
+    result = []
+    for comment in comments:
+        poem = comment.poem
+        result.append({
+            "id": comment.id,
+            "poem_id": comment.poem_id,
+            "poem_uuid": poem.uuid,
+            "poem_title": poem.title or "Untitled",
+            "author": comment.author,
+            "body": comment.body,
+            "created_at": comment.created_at.isoformat()
+        })
+
+    return result
+
 @router.get("/{poem_id}")
 def get_comments(poem_id: int, db: Session = Depends(get_db)):
     """Get all comments for a poem"""
