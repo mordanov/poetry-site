@@ -102,7 +102,11 @@ const I18N = {
     'password.change': 'Change Password',
     'password.mismatch': 'Passwords do not match',
     'password.changed': 'Password changed',
-    'generic.error': 'Error'
+    'generic.error': 'Error',
+    'lang.en': 'English',
+    'lang.ru': 'Russian',
+    'lang.es': 'Spanish',
+    'lang.fr': 'French'
   },
   ru: {
     'site.title': 'Lev Gorev — Poetry',
@@ -203,21 +207,245 @@ const I18N = {
     'password.change': 'Сменить пароль',
     'password.mismatch': 'Пароли не совпадают',
     'password.changed': 'Пароль изменен',
-    'generic.error': 'Ошибка'
+    'generic.error': 'Ошибка',
+    'lang.en': 'Английский',
+    'lang.ru': 'Русский',
+    'lang.es': 'Испанский',
+    'lang.fr': 'Французский'
+  },
+  es: {
+    'site.title': 'Lev Gorev — Poesía',
+    'nav.home': 'Inicio',
+    'nav.poems': 'Poemas',
+    'nav.about': 'Acerca de',
+    'nav.admin': 'Admin',
+    'nav.login': 'Iniciar sesión',
+    'nav.logout': 'Cerrar sesión',
+    'hero.title': 'Palabras<br><em>en la oscuridad</em>',
+    'hero.subtitle': 'Una colección de versos de Lev Gorev',
+    'hero.cta': 'Leer los poemas →',
+    'section.latest': 'Últimos',
+    'poems.title': 'Poemas',
+    'poems.all': 'Todos',
+    'poems.none': 'No se encontraron poemas.',
+    'poems.noneHome': 'Sin poemas aún.',
+    'poems.loading': 'Cargando…',
+    'poems.untitled': '— sin título —',
+    'poems.untitledShort': 'sin título',
+    'poems.back': '← Volver a poemas',
+    'poems.notFound': 'Poema no encontrado.',
+    'comments.title': 'Reflexiones ({count})',
+    'comments.empty': 'Sé el primero en dejar una reflexión.',
+    'comments.namePlaceholder': 'Tu nombre (opcional)',
+    'comments.bodyPlaceholder': 'Deja una reflexión…',
+    'comments.post': 'Publicar',
+    'comments.anonymous': 'Anónimo',
+    'comments.posted': 'Reflexión publicada',
+    'comments.postError': 'Error al publicar',
+    'comments.deleteConfirm': '¿Eliminar esta reflexión?',
+    'comments.deleted': 'Reflexión eliminada',
+    'about.edit': 'Editar página',
+    'about.nameLabel': 'Tu nombre',
+    'about.photoLabel': 'URL de foto',
+    'about.bioLabel': 'Biografía (admite saltos de línea)',
+    'about.save': 'Guardar',
+    'about.saved': 'Página guardada',
+    'about.saveError': 'Error al guardar',
+    'admin.title': 'Admin',
+    'admin.tabs.poems': 'Poemas',
+    'admin.tabs.about': 'Página "Acerca de"',
+    'admin.tabs.comments': 'Reflexiones',
+    'admin.tabs.password': 'Contraseña',
+    'admin.newPoem': '+ Nuevo poema',
+    'admin.exportPoems': '📥 Exportar poemas',
+    'admin.importPoems': '📤 Importar poemas',
+    'admin.comments.none': 'Aún no hay reflexiones.',
+    'admin.comments.viewPoem': 'Ver poema',
+    'admin.none': 'Aún no hay poemas.',
+    'admin.edit': 'Editar',
+    'admin.delete': 'Eliminar',
+    'admin.editPoemTitle': 'Editar poema',
+    'admin.newPoemTitle': 'Nuevo poema',
+    'admin.form.titleLabel': 'Título (opcional)',
+    'admin.form.titlePlaceholder': 'Dejar en blanco si no tiene título',
+    'admin.form.bodyLabel': 'Texto',
+    'admin.form.bodyPlaceholder': 'Escribe tu poema…',
+    'admin.form.tagsLabel': 'Etiquetas (separadas por comas)',
+    'admin.form.tagsPlaceholder': 'amor, naturaleza, dolor',
+    'admin.form.imageLabel': 'Imagen (JPG/PNG, máx. 1MB)',
+    'admin.form.imageRemove': 'Quitar imagen',
+    'admin.form.imageTypeError': 'Solo se permiten JPG y PNG',
+    'admin.form.imageTooLarge': 'La imagen es demasiado grande (máx. 1MB)',
+    'admin.form.imageUploadError': 'Error al subir la imagen',
+    'admin.form.imageDeleteError': 'Error al eliminar la imagen',
+    'admin.form.draftLabel': 'Guardar como borrador',
+    'admin.draft': 'BORRADOR',
+    'admin.versions.title': 'Historial de versiones',
+    'admin.versions.current': 'Actual',
+    'admin.versions.restore': 'Restaurar',
+    'admin.versions.latest': 'Última',
+    'admin.versions.button': '📜 Historial de versiones',
+    'admin.versions.confirmRestore': '¿Restaurar la versión {version}?',
+    'admin.versions.restoreError': 'Error al restaurar la versión',
+    'admin.versions.loadError': 'Error al cargar el historial de versiones',
+    'admin.form.save': 'Guardar cambios',
+    'admin.form.publish': 'Publicar',
+    'admin.form.cancel': 'Cancelar',
+    'admin.form.bodyRequired': 'El texto es obligatorio',
+    'admin.poemUpdated': 'Poema actualizado',
+    'admin.poemPublished': 'Poema publicado',
+    'admin.loadError': 'Error al cargar el poema',
+    'admin.saveError': 'Error al guardar',
+    'admin.deleteConfirm': '¿Eliminar este poema y todas sus reflexiones?',
+    'admin.deleted': 'Poema eliminado',
+    'admin.deleteError': 'Error al eliminar el poema',
+    'auth.title': 'Inicio de sesión del administrador',
+    'auth.username': 'Nombre de usuario',
+    'auth.password': 'Contraseña',
+    'auth.login': 'Iniciar sesión',
+    'auth.invalid': 'Credenciales inválidas',
+    'auth.welcome': '¡Bienvenido de nuevo!',
+    'auth.loggedOut': 'Sesión cerrada',
+    'password.current': 'Contraseña actual',
+    'password.new': 'Nueva contraseña',
+    'password.confirm': 'Confirmar nueva',
+    'password.change': 'Cambiar contraseña',
+    'password.mismatch': 'Las contraseñas no coinciden',
+    'password.changed': 'Contraseña cambiada',
+    'generic.error': 'Error',
+    'lang.en': 'Inglés',
+    'lang.ru': 'Ruso',
+    'lang.es': 'Español',
+    'lang.fr': 'Francés'
+  },
+  fr: {
+    'site.title': 'Lev Gorev — Poésie',
+    'nav.home': 'Accueil',
+    'nav.poems': 'Poèmes',
+    'nav.about': 'À propos',
+    'nav.admin': 'Admin',
+    'nav.login': 'Se connecter',
+    'nav.logout': 'Se déconnecter',
+    'hero.title': 'Des mots<br><em>dans l’obscurité</em>',
+    'hero.subtitle': 'Une collection de vers de Lev Gorev',
+    'hero.cta': 'Lire les poèmes →',
+    'section.latest': 'Récents',
+    'poems.title': 'Poèmes',
+    'poems.all': 'Tous',
+    'poems.none': 'Aucun poème trouvé.',
+    'poems.noneHome': 'Pas de poèmes pour l’instant.',
+    'poems.loading': 'Chargement…',
+    'poems.untitled': '— sans titre —',
+    'poems.untitledShort': 'sans titre',
+    'poems.back': '← Retour aux poèmes',
+    'poems.notFound': 'Poème introuvable.',
+    'comments.title': 'Réflexions ({count})',
+    'comments.empty': 'Soyez le premier à laisser une réflexion.',
+    'comments.namePlaceholder': 'Votre nom (facultatif)',
+    'comments.bodyPlaceholder': 'Laissez une réflexion…',
+    'comments.post': 'Publier',
+    'comments.anonymous': 'Anonyme',
+    'comments.posted': 'Réflexion publiée',
+    'comments.postError': 'Erreur lors de la publication',
+    'comments.deleteConfirm': 'Supprimer cette réflexion ?',
+    'comments.deleted': 'Réflexion supprimée',
+    'about.edit': 'Modifier la page',
+    'about.nameLabel': 'Votre nom',
+    'about.photoLabel': 'URL de la photo',
+    'about.bioLabel': 'Bio (prend en charge les retours à la ligne)',
+    'about.save': 'Enregistrer',
+    'about.saved': 'Page enregistrée',
+    'about.saveError': 'Erreur lors de l’enregistrement',
+    'admin.title': 'Admin',
+    'admin.tabs.poems': 'Poèmes',
+    'admin.tabs.about': 'Page « À propos »',
+    'admin.tabs.comments': 'Réflexions',
+    'admin.tabs.password': 'Mot de passe',
+    'admin.newPoem': '+ Nouveau poème',
+    'admin.exportPoems': '📥 Exporter les poèmes',
+    'admin.importPoems': '📤 Importer les poèmes',
+    'admin.comments.none': 'Aucune réflexion pour le moment.',
+    'admin.comments.viewPoem': 'Voir le poème',
+    'admin.none': 'Aucun poème pour le moment.',
+    'admin.edit': 'Modifier',
+    'admin.delete': 'Supprimer',
+    'admin.editPoemTitle': 'Modifier le poème',
+    'admin.newPoemTitle': 'Nouveau poème',
+    'admin.form.titleLabel': 'Titre (facultatif)',
+    'admin.form.titlePlaceholder': 'Laisser vide si sans titre',
+    'admin.form.bodyLabel': 'Texte',
+    'admin.form.bodyPlaceholder': 'Écrivez votre poème…',
+    'admin.form.tagsLabel': 'Tags (séparés par des virgules)',
+    'admin.form.tagsPlaceholder': 'amour, nature, chagrin',
+    'admin.form.imageLabel': 'Image (JPG/PNG, max 1MB)',
+    'admin.form.imageRemove': 'Supprimer l’image',
+    'admin.form.imageTypeError': 'Seuls JPG et PNG sont autorisés',
+    'admin.form.imageTooLarge': 'L’image est trop grande (max 1MB)',
+    'admin.form.imageUploadError': 'Échec du téléversement de l’image',
+    'admin.form.imageDeleteError': 'Échec de la suppression de l’image',
+    'admin.form.draftLabel': 'Enregistrer comme brouillon',
+    'admin.draft': 'BROUILLON',
+    'admin.versions.title': 'Historique des versions',
+    'admin.versions.current': 'Actuelle',
+    'admin.versions.restore': 'Restaurer',
+    'admin.versions.latest': 'Dernière',
+    'admin.versions.button': '📜 Historique des versions',
+    'admin.versions.confirmRestore': 'Restaurer la version {version} ?',
+    'admin.versions.restoreError': 'Échec de la restauration de la version',
+    'admin.versions.loadError': 'Échec du chargement de l’historique des versions',
+    'admin.form.save': 'Enregistrer les modifications',
+    'admin.form.publish': 'Publier',
+    'admin.form.cancel': 'Annuler',
+    'admin.form.bodyRequired': 'Le texte est obligatoire',
+    'admin.poemUpdated': 'Poème mis à jour',
+    'admin.poemPublished': 'Poème publié',
+    'admin.loadError': 'Erreur lors du chargement du poème',
+    'admin.saveError': 'Erreur lors de l’enregistrement',
+    'admin.deleteConfirm': 'Supprimer ce poème et toutes ses réflexions ?',
+    'admin.deleted': 'Poème supprimé',
+    'admin.deleteError': 'Erreur lors de la suppression du poème',
+    'auth.title': 'Connexion administrateur',
+    'auth.username': 'Nom d’utilisateur',
+    'auth.password': 'Mot de passe',
+    'auth.login': 'Se connecter',
+    'auth.invalid': 'Identifiants invalides',
+    'auth.welcome': 'Content de vous revoir !',
+    'auth.loggedOut': 'Déconnecté',
+    'password.current': 'Mot de passe actuel',
+    'password.new': 'Nouveau mot de passe',
+    'password.confirm': 'Confirmer le nouveau',
+    'password.change': 'Changer le mot de passe',
+    'password.mismatch': 'Les mots de passe ne correspondent pas',
+    'password.changed': 'Mot de passe changé',
+    'generic.error': 'Erreur',
+    'lang.en': 'Anglais',
+    'lang.ru': 'Russe',
+    'lang.es': 'Espagnol',
+    'lang.fr': 'Français'
   }
 };
 
-let currentLang = (localStorage.getItem('lang') || (navigator.language || 'en'))
-  .toLowerCase()
-  .startsWith('ru')
-  ? 'ru'
-  : 'en';
+let currentLang = (() => {
+  const stored = localStorage.getItem('lang');
+  const browser = (navigator.language || '').toLowerCase();
+  const detected = browser.startsWith('ru')
+    ? 'ru'
+    : browser.startsWith('es')
+      ? 'es'
+      : browser.startsWith('fr')
+        ? 'fr'
+        : browser.startsWith('en')
+          ? 'en'
+          : 'ru';
+  const initial = stored || detected || 'ru';
+  return I18N[initial] ? initial : 'ru';
+})();
 
 function t(key, vars = {}) {
-  const dict = I18N[currentLang] || I18N.en;
-  let str = dict[key] || I18N.en[key] || key;
+  const dict = I18N[currentLang] || I18N.ru;
+  let str = dict[key] || I18N.ru[key] || I18N.en[key] || key;
   Object.keys(vars).forEach(k => {
-    str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), vars[k]);
+    str = str.replace(new RegExp(`\{${k}\}`, 'g'), vars[k]);
   });
   return str;
 }
@@ -232,11 +460,9 @@ function applyTranslations() {
 }
 
 function updateLangUI() {
-  document.querySelectorAll('.lang-switch button').forEach(btn => {
-    const active = btn.dataset.lang === currentLang;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
+  const select = document.getElementById('lang-select');
+  if (!select) return;
+  select.value = currentLang;
 }
 
 function setLanguage(lang, rerender = true) {
@@ -251,9 +477,10 @@ function setLanguage(lang, rerender = true) {
 
 function initLanguage() {
   setLanguage(currentLang, false);
-  document.querySelectorAll('.lang-switch button').forEach(btn => {
-    btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
-  });
+  const select = document.getElementById('lang-select');
+  if (select) {
+    select.addEventListener('change', e => setLanguage(e.target.value));
+  }
 }
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -1057,13 +1284,25 @@ function esc(str) {
 
 function fmtDate(iso) {
   if (!iso) return '';
-  const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+  const locale = currentLang === 'ru'
+    ? 'ru-RU'
+    : currentLang === 'es'
+      ? 'es-ES'
+      : currentLang === 'fr'
+        ? 'fr-FR'
+        : 'en-US';
   return new Date(iso).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 function fmtDateTime(iso) {
   if (!iso) return '';
-  const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+  const locale = currentLang === 'ru'
+    ? 'ru-RU'
+    : currentLang === 'es'
+      ? 'es-ES'
+      : currentLang === 'fr'
+        ? 'fr-FR'
+        : 'en-US';
   return new Date(iso).toLocaleString(locale, {
     year: 'numeric',
     month: 'long',

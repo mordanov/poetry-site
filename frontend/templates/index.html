@@ -32,9 +32,13 @@
   <div class="nav-right">
     <span id="nav-login-btn" class="btn-ghost" onclick="showLoginModal()" data-i18n="nav.login">Login</span>
     <span id="nav-logout-btn" class="btn-ghost" style="display:none" onclick="logout()" data-i18n="nav.logout">Logout</span>
-    <div class="lang-switch" role="group" aria-label="Language">
-      <button type="button" data-lang="en" class="lang-btn">EN</button>
-      <button type="button" data-lang="ru" class="lang-btn">RU</button>
+    <div class="lang-switch" aria-label="Language">
+      <select class="lang-select" id="lang-select" aria-label="Language">
+        <option value="en" data-i18n="lang.en">English</option>
+        <option value="ru" data-i18n="lang.ru">Русский</option>
+        <option value="es" data-i18n="lang.es">Español</option>
+        <option value="fr" data-i18n="lang.fr">Français</option>
+      </select>
     </div>
   </div>
 </nav>

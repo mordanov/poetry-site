@@ -60,7 +60,7 @@ body {
 }
 .nav-links a:hover, .nav-links a.active { color: var(--ink); }
 
-t.nav-right {
+.nav-right {
   display: flex; align-items: center; gap: 1rem;
 }
 
@@ -74,24 +74,22 @@ t.nav-right {
 .btn-ghost:hover { color: var(--gold); }
 
 .lang-switch {
-  display: inline-flex; align-items: center; gap: 0.35rem;
+  display: inline-flex; align-items: center;
   border: 1px solid var(--border); border-radius: 999px;
-  padding: 2px;
+  padding: 2px 6px;
 }
 
-.lang-btn {
+.lang-select {
   font-family: 'Montserrat', sans-serif;
   font-size: 0.62rem; font-weight: 500;
   letter-spacing: 0.12em; text-transform: uppercase;
-  background: transparent; border: 0; color: var(--muted);
-  padding: 4px 8px; border-radius: 999px;
-  cursor: pointer; transition: color .2s, background .2s;
+  background: transparent; color: var(--muted);
+  border: 0; outline: none; cursor: pointer;
+  padding: 4px 6px;
+  appearance: none;
 }
 
-.lang-btn:hover { color: var(--gold); }
-.lang-btn.active {
-  background: var(--ink); color: var(--cream);
-}
+.lang-select:hover { color: var(--gold); }
 
 /* PAGES */
 #app { padding-top: 65px; }
