@@ -504,7 +504,7 @@ async function loadPoem(uuid) {
           <h1 class="poem-full-title ${!poem.title ? 'untitled' : ''}">${poem.title || t('poems.untitled')}</h1>
           <div class="poem-full-meta">
             ${poem.tags.map(tg => `<span class="tag" onclick="navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}', 1),50)">${esc(tg)}</span>`).join('')}
-            <span class="poem-date">${fmtDate(poem.created_at)}</span>
+            <span class="poem-date">${fmtDateTime(poem.created_at)}</span>
           </div>
           <div class="poem-body">${esc(poem.body)}</div>
           ${adminActions}
@@ -531,7 +531,7 @@ function renderComments(comments, poemId) {
     <div class="comment" id="comment-${c.id}">
       <div class="comment-author">${esc(c.author)}</div>
       <div class="comment-body">${esc(c.body)}</div>
-      <div class="comment-date">${fmtDate(c.created_at)}</div>
+      <div class="comment-date">${fmtDateTime(c.created_at)}</div>
       ${token ? `<span class="comment-delete" onclick="deleteComment(${c.id}, ${poemId})">✕</span>` : ''}
     </div>
   `).join('');
@@ -660,7 +660,7 @@ async function loadAdminComments() {
       <div class="admin-comment-item">
         <div class="admin-comment-header">
           <span class="admin-comment-author">${esc(c.author)}</span>
-          <span class="admin-comment-date">${fmtDate(c.created_at)}</span>
+          <span class="admin-comment-date">${fmtDateTime(c.created_at)}</span>
         </div>
         <div class="admin-comment-body">${esc(c.body)}</div>
         <div class="admin-comment-footer">
@@ -865,7 +865,7 @@ function renderVersionsList(data) {
         <div style="border:1px solid var(--border);padding:1rem;border-radius:2px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
             <span style="font-weight:500;font-size:0.9rem">Version ${v.version_number}${v.is_current ? ` <span data-i18n="admin.versions.current">(${t('admin.versions.current')})</span>` : ''}</span>
-            <span style="font-size:0.8rem;color:var(--muted)">${new Date(v.created_at).toLocaleDateString()} ${new Date(v.created_at).toLocaleTimeString()}</span>
+            <span style="font-size:0.8rem;color:var(--muted)">${fmtDateTime(v.created_at)}</span>
           </div>
           <div style="margin-bottom:0.8rem;padding:0.8rem;background:var(--parchment);border-radius:2px;font-size:0.9rem;max-height:120px;overflow-y:auto">
             <strong>${v.title || '— untitled —'}</strong>
@@ -1039,7 +1039,7 @@ function renderPoemCard(p) {
       <div class="poem-card-preview">${esc(p.body.slice(0, 200))}</div>
       <div class="poem-card-meta">
         ${p.tags.map(tg => `<span class="tag" onclick="event.stopPropagation();navigate('poems');setTimeout(()=>loadPoems('${esc(tg)}', 1),50)">${esc(tg)}</span>`).join('')}
-        <span class="poem-date">${fmtDate(p.created_at)}</span>
+        <span class="poem-date">${fmtDateTime(p.created_at)}</span>
       </div>
     </div>
   `;
@@ -1059,6 +1059,18 @@ function fmtDate(iso) {
   if (!iso) return '';
   const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
   return new Date(iso).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+  return new Date(iso).toLocaleString(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 let toastTimer;
@@ -1081,4 +1093,3 @@ function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   document.getElementById('login-modal').classList.remove('open');
 }
-
