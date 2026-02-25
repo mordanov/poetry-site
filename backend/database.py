@@ -74,6 +74,8 @@ def _migrate_poems_schema(db: Session) -> None:
         db.execute(text("ALTER TABLE poems ADD COLUMN image_filename VARCHAR(255)"))
     if not _column_exists(db, "poems", "generation_id"):
         db.execute(text("ALTER TABLE poems ADD COLUMN generation_id VARCHAR(255)"))
+    if not _column_exists(db, "poems", "is_draft"):
+        db.execute(text("ALTER TABLE poems ADD COLUMN is_draft INTEGER DEFAULT 0 NOT NULL"))
 
     db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_poems_uuid ON poems (uuid)"))
     db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_poems_generation_id ON poems (generation_id) WHERE generation_id IS NOT NULL"))

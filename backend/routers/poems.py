@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from database import get_db
-from routers.auth import get_current_admin
+from routers.auth import get_current_admin, get_optional_admin
 from models import Poem, Tag, Comment, Admin, PoemVersion
 import io
 import json
@@ -25,11 +25,13 @@ class PoemIn(BaseModel):
     title: Optional[str] = ""
     body: str
     tags: List[str] = []
+    is_draft: int = 0
 
 class PoemUpdate(BaseModel):
     title: Optional[str] = None
     body: Optional[str] = None
     tags: Optional[List[str]] = None
+    is_draft: Optional[int] = None
 
 class PoemOut(BaseModel):
     id: int
@@ -37,6 +39,7 @@ class PoemOut(BaseModel):
     title: str
     body: str
     image_url: Optional[str]
+    is_draft: int
     created_at: str
     updated_at: str
     tags: List[str]
@@ -57,6 +60,7 @@ def _poem_to_dict(poem: Poem, comment_count: Optional[int] = None) -> dict:
         "title": poem.title,
         "body": poem.body,
         "image_url": _image_url(poem),
+        "is_draft": poem.is_draft,
         "created_at": poem.created_at.isoformat(),
         "updated_at": poem.updated_at.isoformat(),
         "tags": [t.name for t in poem.tags]
@@ -71,10 +75,16 @@ def list_poems(
     tag: Optional[str] = None,
     page: int = 1,
     limit: int = 10,
+    admin: Optional[Admin] = Depends(get_optional_admin),
     db: Session = Depends(get_db)
 ):
-    """List all poems with pagination, optionally filtered by tag"""
-    query = db.query(Poem).order_by(desc(Poem.created_at))
+    """List poems - admin sees all, public sees only published"""
+    # Admin sees all poems with drafts first, public sees only published
+    if admin:
+        query = db.query(Poem).order_by(desc(Poem.is_draft), desc(Poem.created_at))
+    else:
+        query = db.query(Poem).filter(Poem.is_draft == 0).order_by(desc(Poem.created_at))
+
     if tag:
         query = query.join(Poem.tags).filter(Tag.name == tag.lower())
 
@@ -139,6 +149,7 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
             "body": poem.body,
             "tags": [t.name for t in poem.tags],
             "image_filename": poem.image_filename,
+            "is_draft": poem.is_draft,
             "created_at": poem.created_at.isoformat(),
             "updated_at": poem.updated_at.isoformat()
         })
@@ -223,6 +234,7 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
                         uuid=poem_uuid,
                         title=poem_data.get("title", ""),
                         body=poem_data["body"],
+                        is_draft=poem_data.get("is_draft", 0),
                         created_at=datetime.fromisoformat(poem_data.get("created_at")) if poem_data.get("created_at") else datetime.utcnow(),
                         updated_at=datetime.fromisoformat(poem_data.get("updated_at")) if poem_data.get("updated_at") else datetime.utcnow()
                     )
@@ -344,7 +356,7 @@ def get_poem(poem_id: int, db: Session = Depends(get_db)):
 @router.post("", status_code=201)
 def create_poem(data: PoemIn, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Create a new poem"""
-    poem = Poem(title=data.title, body=data.body)
+    poem = Poem(title=data.title, body=data.body, is_draft=data.is_draft)
 
     for tag_name in data.tags:
         tag_name = tag_name.strip().lower()
@@ -388,6 +400,8 @@ def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_curre
         poem.title = data.title
     if data.body is not None:
         poem.body = data.body
+    if data.is_draft is not None:
+        poem.is_draft = data.is_draft
 
     if data.tags is not None:
         poem.tags.clear()

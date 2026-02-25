@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 import bcrypt
 import jwt
 import os
@@ -14,7 +15,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-change-in-production")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 def create_token(username: str) -> str:
     payload = {
@@ -37,6 +38,20 @@ def get_current_admin(token: str = Depends(oauth2_scheme), db: Session = Depends
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+def get_optional_admin(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """Get admin if token is valid, otherwise return None"""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if not username:
+            return None
+        admin = db.query(Admin).filter(Admin.username == username).first()
+        return admin
+    except:
+        return None
 
 class PasswordChange(BaseModel):
     current_password: str

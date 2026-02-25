@@ -65,6 +65,8 @@ const I18N = {
     'admin.form.imageTooLarge': 'Image is too large (max 1MB)',
     'admin.form.imageUploadError': 'Image upload failed',
     'admin.form.imageDeleteError': 'Image delete failed',
+    'admin.form.draftLabel': 'Save as draft',
+    'admin.draft': 'DRAFT',
     'admin.versions.title': 'Version History',
     'admin.versions.current': 'Current',
     'admin.versions.restore': 'Restore',
@@ -161,6 +163,8 @@ const I18N = {
     'admin.form.imageTooLarge': 'Картинка слишком большая (макс. 1MB)',
     'admin.form.imageUploadError': 'Ошибка загрузки картинки',
     'admin.form.imageDeleteError': 'Ошибка удаления картинки',
+    'admin.form.draftLabel': 'Сохранить как черновик',
+    'admin.draft': 'ЧЕРНОВИК',
     'admin.versions.title': 'История версий',
     'admin.versions.current': 'Текущая',
     'admin.versions.restore': 'Восстановить',
@@ -594,7 +598,8 @@ async function loadAdminPoems() {
       return;
     }
     list.innerHTML = poems.map(p => `
-      <div class="admin-poem-item">
+      <div class="admin-poem-item ${p.is_draft ? 'admin-poem-item-draft' : ''}">
+        ${p.is_draft ? `<span class="admin-poem-draft-badge">${t('admin.draft')}</span>` : ''}
         <span class="admin-poem-item-title ${!p.title ? '' : ''}">${p.title || `<em>${t('poems.untitledShort')}</em>`}</span>
         <div class="admin-poem-item-tags">${p.tags.map(tg => `<span class="tag">${esc(tg)}</span>`).join('')}</div>
         <div class="admin-poem-item-actions">
@@ -619,7 +624,15 @@ function showPoemForm(poem = null) {
   form.style.display = '';
   form.innerHTML = `
     <div class="poem-form">
-      <h3 style="font-family:'IM Fell English',serif;font-size:1.4rem;margin-bottom:1.5rem">${poem ? t('admin.editPoemTitle') : t('admin.newPoemTitle')}</h3>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h3 style="font-family:'IM Fell English',serif;font-size:1.4rem;margin:0">${poem ? t('admin.editPoemTitle') : t('admin.newPoemTitle')}</h3>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); width: 20%;">
+          <input type="checkbox" id="pf-draft" style="width: 20%; min-width: 18px;" ${poem?.is_draft ? 'checked' : ''}>
+          <span style="width: 80%;">${t('admin.form.draftLabel')}</span>
+        </label>
+      </div>
+        </label>
+      </div>
       <label>${t('admin.form.titleLabel')}
         <input type="text" id="pf-title" value="${esc(poem?.title || '')}" placeholder="${t('admin.form.titlePlaceholder')}">
       </label>
@@ -667,6 +680,7 @@ async function savePoem() {
   const body = document.getElementById('pf-body').value.trim();
   const tagsRaw = document.getElementById('pf-tags').value;
   const tags = tagsRaw.split(',').map(tg => tg.trim()).filter(Boolean);
+  const is_draft = document.getElementById('pf-draft').checked ? 1 : 0;
   const imageFile = document.getElementById('pf-image').files[0];
   if (!body) { toast(t('admin.form.bodyRequired'), true); return; }
   if (imageFile) {
@@ -684,13 +698,13 @@ async function savePoem() {
     if (editingPoemId) {
       poem = await apiFetch(`/poems/${editingPoemId}`, {
         method: 'PUT',
-        body: JSON.stringify({ title, body, tags })
+        body: JSON.stringify({ title, body, tags, is_draft })
       });
       toast(t('admin.poemUpdated'));
     } else {
       poem = await apiFetch('/poems', {
         method: 'POST',
-        body: JSON.stringify({ title, body, tags })
+        body: JSON.stringify({ title, body, tags, is_draft })
       });
       toast(t('admin.poemPublished'));
     }

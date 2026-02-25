@@ -56,6 +56,7 @@ class Poem(Base):
     body = Column(Text, nullable=False)
     image_filename = Column(String(255), nullable=True)
     generation_id = Column(String(255), nullable=True, unique=True, index=True)
+    is_draft = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

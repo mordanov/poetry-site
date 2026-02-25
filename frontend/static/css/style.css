@@ -514,6 +514,19 @@ t.nav-right {
   background: var(--parchment); border: 1px solid var(--border);
   padding: 1.2rem 1.5rem; margin-bottom: .8rem;
   display: flex; align-items: center; gap: 1rem;
+  position: relative;
+}
+.admin-poem-item-draft {
+  background: #ffebee;
+  border-color: #ef5350;
+}
+.admin-poem-draft-badge {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: white; background: #ef5350;
+  padding: 2px 6px; border-radius: 2px;
+  margin-right: 0.5rem;
 }
 .admin-poem-item-title {
   font-family: 'IM Fell English', serif; font-size: 1.2rem; flex: 1;
