@@ -37,7 +37,7 @@ class About(Base):
     __tablename__ = "about"
 
     id = Column(Integer, primary_key=True, index=True, default=1)
-    name = Column(String(255), nullable=False, default='Lev Gorev')
+    name = Column(String(255), nullable=False, default='Famous poet')
     bio = Column(Text, nullable=False, default='')
     photo_url = Column(String(500), nullable=True)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)

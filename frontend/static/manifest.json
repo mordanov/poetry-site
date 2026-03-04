@@ -1,7 +1,7 @@
 {
-  "name": "Lev Gorev — Poetry",
-  "short_name": "LG Poetry",
-  "description": "Poetry collection by Lev Gorev",
+  "name": "Famous poet — Poetry",
+  "short_name": "Poetry",
+  "description": "Poetry collection by Famous poet",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#faf7f2",

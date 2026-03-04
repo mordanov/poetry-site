@@ -18,9 +18,11 @@ load_dotenv()
 DB_PATH = os.getenv("DB_PATH", "/app/data/poetry.db")
 UPLOADS_DIR = os.getenv("UPLOADS_DIR", "/app/data/uploads/poems")
 
-# Ensure data directory exists
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-os.makedirs(UPLOADS_DIR, exist_ok=True)
+# Ensure data directory exists (skip for in-memory database)
+if DB_PATH != ':memory:' and os.path.dirname(DB_PATH):
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+if not UPLOADS_DIR.startswith('/tmp'):  # Skip for test directories
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 # Build SQLite database URL
 DATABASE_URL = f"sqlite:///{DB_PATH}"
@@ -121,9 +123,10 @@ def init_db():
         # Check if about page exists
         about_exists = db.query(About).filter(About.id == 1).first()
         if not about_exists:
+            poet_name = os.getenv('POET_NAME', 'Famous poet')
             about = About(
                 id=1,
-                name='Lev Gorev',
+                name=poet_name,
                 bio='Welcome to my poetry corner.'
             )
             db.add(about)

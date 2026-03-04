@@ -1,10 +1,11 @@
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const API = '/api';
+let POET_NAME = 'Famous poet'; // Will be loaded from API
 
 // ─── I18N ─────────────────────────────────────────────────────────────────────
 const I18N = {
   en: {
-    'site.title': 'Lev Gorev — Poetry',
+    'site.title': '{poet} — Poetry',
     'nav.home': 'Home',
     'nav.poems': 'Poems',
     'nav.about': 'About',
@@ -12,7 +13,7 @@ const I18N = {
     'nav.login': 'Login',
     'nav.logout': 'Logout',
     'hero.title': 'Words<br><em>in the dark</em>',
-    'hero.subtitle': 'A collection of verses by Lev Gorev',
+    'hero.subtitle': 'A collection of verses by {poet}',
     'hero.cta': 'Read the poems →',
     'section.latest': 'Latest',
     'poems.title': 'Poems',
@@ -109,7 +110,7 @@ const I18N = {
     'lang.fr': 'French'
   },
   ru: {
-    'site.title': 'Lev Gorev — Poetry',
+    'site.title': '{poet} — Poetry',
     'nav.home': 'Главная',
     'nav.poems': 'Стихи',
     'nav.about': 'Об авторе',
@@ -117,7 +118,7 @@ const I18N = {
     'nav.login': 'Войти',
     'nav.logout': 'Выйти',
     'hero.title': 'Слова<br><em>в темноте</em>',
-    'hero.subtitle': 'Собрание стихов Льва Горевa',
+    'hero.subtitle': 'Собрание стихов {poet}',
     'hero.cta': 'Читать стихи →',
     'section.latest': 'Новое',
     'poems.title': 'Стихи',
@@ -214,7 +215,7 @@ const I18N = {
     'lang.fr': 'Французский'
   },
   es: {
-    'site.title': 'Lev Gorev — Poesía',
+    'site.title': '{poet} — Poesía',
     'nav.home': 'Inicio',
     'nav.poems': 'Poemas',
     'nav.about': 'Acerca de',
@@ -222,7 +223,7 @@ const I18N = {
     'nav.login': 'Iniciar sesión',
     'nav.logout': 'Cerrar sesión',
     'hero.title': 'Palabras<br><em>en la oscuridad</em>',
-    'hero.subtitle': 'Una colección de versos de Lev Gorev',
+    'hero.subtitle': 'Una colección de versos de {poet}',
     'hero.cta': 'Leer los poemas →',
     'section.latest': 'Últimos',
     'poems.title': 'Poemas',
@@ -327,7 +328,7 @@ const I18N = {
     'nav.login': 'Se connecter',
     'nav.logout': 'Se déconnecter',
     'hero.title': 'Des mots<br><em>dans l’obscurité</em>',
-    'hero.subtitle': 'Une collection de vers de Lev Gorev',
+    'hero.subtitle': 'Une collection de vers de {poet}',
     'hero.cta': 'Lire les poèmes →',
     'section.latest': 'Récents',
     'poems.title': 'Poèmes',
@@ -444,8 +445,10 @@ let currentLang = (() => {
 function t(key, vars = {}) {
   const dict = I18N[currentLang] || I18N.ru;
   let str = dict[key] || I18N.ru[key] || I18N.en[key] || key;
-  Object.keys(vars).forEach(k => {
-    str = str.replace(new RegExp(`\{${k}\}`, 'g'), vars[k]);
+  // Always include poet name in variables
+  const allVars = { poet: POET_NAME, ...vars };
+  Object.keys(allVars).forEach(k => {
+    str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), allVars[k]);
   });
   return str;
 }
@@ -488,8 +491,22 @@ let token = localStorage.getItem('token') || null;
 let currentTag = null;
 let editingPoemId = null;
 
+// ─── CONFIG LOADER ────────────────────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const res = await fetch(API + '/config');
+    if (res.ok) {
+      const config = await res.json();
+      POET_NAME = config.poet_name || 'Famous poet';
+    }
+  } catch (err) {
+    console.warn('Failed to load config, using default poet name', err);
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadConfig();
   initLanguage();
   updateAuthUI();
   handleRoute();

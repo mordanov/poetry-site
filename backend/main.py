@@ -42,6 +42,13 @@ app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 def health():
     return {"status": "ok"}
 
+@app.get("/api/config")
+def get_config():
+    """Return public configuration values"""
+    return {
+        "poet_name": os.getenv("POET_NAME", "Famous poet")
+    }
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

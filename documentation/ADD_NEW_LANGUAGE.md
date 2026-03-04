@@ -30,17 +30,17 @@ const I18N = {
 ```javascript
 const I18N = {
   en: {
-    'site.title': 'Lev Gorev — Poetry',
+    'site.title': '{POET_NAME} — Poetry',
     'nav.home': 'Home',
     // ... все остальные ключи
   },
   ru: {
-    'site.title': 'Lev Gorev — Poetry',
+    'site.title': '{POET_NAME} — Poetry',
     'nav.home': 'Главная',
     // ... все остальные ключи
   },
   es: {  // ← НОВОЕ: Испанский
-    'site.title': 'Lev Gorev — Poesía',
+    'site.title': '{POET_NAME} — Poesía',
     'nav.home': 'Inicio',
     'nav.poems': 'Poemas',
     'nav.about': 'Acerca de',
@@ -48,7 +48,7 @@ const I18N = {
     'nav.login': 'Iniciar sesión',
     'nav.logout': 'Cerrar sesión',
     'hero.title': 'Palabras<br><em>en la oscuridad</em>',
-    'hero.subtitle': 'Una colección de versos de Lev Gorev',
+    'hero.subtitle': 'Una colección de versos de {POET_NAME}',
     'hero.cta': 'Leer los poemas →',
     'section.latest': 'Últimos',
     'poems.title': 'Poemas',
@@ -164,7 +164,7 @@ F5 или Cmd+R
 
 | Элемент | Должно быть |
 |---------|-----------|
-| Заголовок | "Lev Gorev — Poesía" |
+| Заголовок | "{POET_NAME} — Poesía" |
 | Меню | "Inicio", "Poemas", "Acerca de" |
 | Кнопка "Login" | "Iniciar sesión" |
 | Кнопка "Logout" | "Cerrar sesión" |
@@ -189,7 +189,7 @@ F5 или Cmd+R
 
 ```javascript
 'fr': {
-  'site.title': 'Lev Gorev — Poésie',
+  'site.title': '{POET_NAME} — Poésie',
   'nav.home': 'Accueil',
   'nav.poems': 'Poèmes',
   'nav.about': 'À propos',
@@ -206,7 +206,7 @@ F5 или Cmd+R
 
 ```javascript
 'de': {
-  'site.title': 'Lev Gorev — Poesie',
+  'site.title': '{POET_NAME} — Poesie',
   'nav.home': 'Startseite',
   'nav.poems': 'Gedichte',
   'nav.about': 'Über',
@@ -223,7 +223,7 @@ F5 или Cmd+R
 
 ```javascript
 'it': {
-  'site.title': 'Lev Gorev — Poesia',
+  'site.title': '{POET_NAME} — Poesia',
   'nav.home': 'Home',
   'nav.poems': 'Poesie',
   'nav.about': 'Chi sono',

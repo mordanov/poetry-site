@@ -120,7 +120,7 @@ curl http://localhost/api/poems
 
 ```bash
 curl http://localhost/api/about
-# Ответ: {"id":1,"name":"Lev Gorev","bio":"Welcome to my poetry corner.","photo_url":null,"updated_at":"..."}
+# Ответ: {"id":1,"name":"Famous poet","bio":"Welcome to my poetry corner.","photo_url":null,"updated_at":"..."}
 ```
 
 ### Часть 3️⃣: Тестирование администраторской панели

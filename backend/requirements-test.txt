@@ -1,0 +1,6 @@
+# Test dependencies for backend
+pytest==8.4.2
+pytest-cov==6.0.0
+httpx==0.28.1
+passlib==1.7.4
+
