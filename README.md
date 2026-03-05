@@ -1,6 +1,6 @@
-# levgorev.com — Poetry Site
+# Poetry Site
 
-Personal poetry site for Lev Gorev. Built with **FastAPI** backend, **Vanilla JS** SPA frontend, **PostgreSQL** database, served via **Nginx**, deployed with **Docker Compose**.
+Personal poetry site for a famous poet. Built with **FastAPI** backend, **Vanilla JS** SPA frontend, **PostgreSQL** database, served via **Nginx**, deployed with **Docker Compose**.
 
 ---
 
@@ -69,7 +69,7 @@ Or just open `frontend/templates/index.html` in a browser, setting the API base 
 ### Prerequisites
 - VPS running Ubuntu 22.04 (1 vCPU / 1 GB RAM is enough)
 - Docker + Docker Compose installed
-- DNS record: `A www.levgorev.com → YOUR_VPS_IP` (also add `A levgorev.com → YOUR_VPS_IP`)
+- DNS record: `A www.yoursite.com → YOUR_VPS_IP` (also add `A yoursite.com → YOUR_VPS_IP`)
 - Port 80 and 443 open in firewall
 
 ### Step 1 — Upload files
@@ -99,14 +99,14 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 docker compose up -d --build
 ```
 
-Check it works at http://www.levgorev.com
+Check it works at http://www.yoursite.com
 
 ### Step 4 — Get HTTPS certificate (Let's Encrypt, free)
 
 ```bash
 docker compose run --rm certbot certonly \
   --webroot --webroot-path /var/www/certbot \
-  -d www.levgorev.com -d levgorev.com \
+  -d www.yoursite.com -d yoursite.com \
   --email your@email.com --agree-tos --no-eff-email
 ```
 
@@ -117,7 +117,7 @@ cp nginx/default-https.conf nginx/default.conf
 docker compose restart nginx
 ```
 
-Your site is now live at https://www.levgorev.com 🎉
+Your site is now live at https://www.yoursite.com 🎉
 
 ### Step 6 — Auto-renew certificate
 
@@ -132,7 +132,7 @@ Add this to your crontab (`crontab -e`) to reload nginx when cert renews:
 
 ## Admin Usage
 
-1. Go to https://www.levgorev.com, click **Login** (top right)
+1. Go to https://www.yoursite.com, click **Login** (top right)
 2. Log in with your credentials from `.env`
 3. Click **Admin** in the nav
 
