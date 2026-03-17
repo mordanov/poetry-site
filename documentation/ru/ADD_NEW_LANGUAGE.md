@@ -1,11 +1,11 @@
 # 🌏 Добавление нового языка — Пошаговое руководство
 
-Полное руководство по добавлению третьего языка (на примере испанского).
+Полное руководство по добавлению нового языка (на примере испанского).
 
 ## 📋 План действий
 
 1. Добавить словарь переводов в `I18N`
-2. Добавить кнопку переключения
+2. Добавить язык в выпадающий список
 3. Протестировать
 4. (Опционально) Обновить документацию
 
@@ -30,17 +30,17 @@ const I18N = {
 ```javascript
 const I18N = {
   en: {
-    'site.title': 'Lev Gorev — Poetry',
+    'site.title': 'poetry-site — Poetry',
     'nav.home': 'Home',
     // ... все остальные ключи
   },
   ru: {
-    'site.title': 'Lev Gorev — Poetry',
+    'site.title': 'poetry-site — Poetry',
     'nav.home': 'Главная',
     // ... все остальные ключи
   },
   es: {  // ← НОВОЕ: Испанский
-    'site.title': 'Lev Gorev — Poesía',
+    'site.title': 'poetry-site — Poesía',
     'nav.home': 'Inicio',
     'nav.poems': 'Poemas',
     'nav.about': 'Acerca de',
@@ -48,7 +48,7 @@ const I18N = {
     'nav.login': 'Iniciar sesión',
     'nav.logout': 'Cerrar sesión',
     'hero.title': 'Palabras<br><em>en la oscuridad</em>',
-    'hero.subtitle': 'Una colección de versos de Lev Gorev',
+    'hero.subtitle': 'Una colección de versos de poetry-site',
     'hero.cta': 'Leer los poemas →',
     'section.latest': 'Últimos',
     'poems.title': 'Poemas',
@@ -122,27 +122,31 @@ const I18N = {
 }
 ```
 
-## 🔘 Шаг 2: Добавление кнопки переключения
+## 🔘 Шаг 2: Добавление языка в выпадающий список
 
 ### Находим переключатель
 
 **Файл:** `/frontend/templates/index.html` (строка ~21)
 
 ```html
-<div class="lang-switch" role="group" aria-label="Language">
-  <button type="button" data-lang="en" class="lang-btn">EN</button>
-  <button type="button" data-lang="ru" class="lang-btn">RU</button>
-  <!-- ← Добавляем испанский здесь -->
+<div class="lang-switch" aria-label="Language">
+  <select class="lang-select" id="lang-select" aria-label="Language">
+    <option value="en" data-i18n="lang.en">English</option>
+    <option value="ru" data-i18n="lang.ru">Русский</option>
+    <!-- ← Добавляем испанский здесь -->
+  </select>
 </div>
 ```
 
-### Добавляем кнопку испанского
+### Добавляем испанский
 
 ```html
-<div class="lang-switch" role="group" aria-label="Language">
-  <button type="button" data-lang="en" class="lang-btn">EN</button>
-  <button type="button" data-lang="ru" class="lang-btn">RU</button>
-  <button type="button" data-lang="es" class="lang-btn">ES</button>  <!-- ← НОВОЕ -->
+<div class="lang-switch" aria-label="Language">
+  <select class="lang-select" id="lang-select" aria-label="Language">
+    <option value="en" data-i18n="lang.en">English</option>
+    <option value="ru" data-i18n="lang.ru">Русский</option>
+    <option value="es" data-i18n="lang.es">Español</option>  <!-- ← НОВОЕ -->
+  </select>
 </div>
 ```
 
@@ -154,17 +158,17 @@ const I18N = {
 F5 или Cmd+R
 ```
 
-### 2. Проверьте кнопку
+### 2. Проверьте переключатель
 
-- В правом верхнем углу должна появиться кнопка `ES`
-- Нажмите `ES`
+- В правом верхнем углу должен быть выпадающий список
+- Выберите `ES`
 - Интерфейс должен переключиться на испанский
 
 ### 3. Проверьте переводы
 
 | Элемент | Должно быть |
 |---------|-----------|
-| Заголовок | "Lev Gorev — Poesía" |
+| Заголовок | "poetry-site — Poesía" |
 | Меню | "Inicio", "Poemas", "Acerca de" |
 | Кнопка "Login" | "Iniciar sesión" |
 | Кнопка "Logout" | "Cerrar sesión" |
@@ -189,7 +193,7 @@ F5 или Cmd+R
 
 ```javascript
 'fr': {
-  'site.title': 'Lev Gorev — Poésie',
+  'site.title': 'poetry-site — Poésie',
   'nav.home': 'Accueil',
   'nav.poems': 'Poèmes',
   'nav.about': 'À propos',
@@ -197,16 +201,17 @@ F5 или Cmd+R
 }
 ```
 
-**Кнопка в HTML:**
+**Опция в HTML:**
+
 ```html
-<button type="button" data-lang="fr" class="lang-btn">FR</button>
+<option value="fr" data-i18n="lang.fr">Français</option>
 ```
 
 ### Немецкий (DE)
 
 ```javascript
 'de': {
-  'site.title': 'Lev Gorev — Poesie',
+  'site.title': 'poetry-site — Poesie',
   'nav.home': 'Startseite',
   'nav.poems': 'Gedichte',
   'nav.about': 'Über',
@@ -214,16 +219,16 @@ F5 или Cmd+R
 }
 ```
 
-**Кнопка в HTML:**
+**Опция в HTML:**
 ```html
-<button type="button" data-lang="de" class="lang-btn">DE</button>
+<option value="de" data-i18n="lang.de">Deutsch</option>
 ```
 
 ### Итальянский (IT)
 
 ```javascript
 'it': {
-  'site.title': 'Lev Gorev — Poesia',
+  'site.title': 'poetry-site — Poesia',
   'nav.home': 'Home',
   'nav.poems': 'Poesie',
   'nav.about': 'Chi sono',
@@ -231,24 +236,30 @@ F5 или Cmd+R
 }
 ```
 
-**Кнопка в HTML:**
+**Опция в HTML:**
 ```html
-<button type="button" data-lang="it" class="lang-btn">IT</button>
+<option value="it" data-i18n="lang.it">Italiano</option>
 ```
 
 ## 📚 Справочник кодов языков
 
-| Язык | Код | Кнопка |
-|------|-----|--------|
-| Английский | en | EN |
-| Русский | ru | RU |
-| Испанский | es | ES |
-| Французский | fr | FR |
-| Немецкий | de | DE |
-| Итальянский | it | IT |
-| Португальский | pt | PT |
-| Японский | ja | JA |
-| Китайский | zh | ZH |
+| Язык | Код | Опция |
+|------|-----|-------|
+| Английский | en | English |
+| Русский | ru | Русский |
+| Испанский | es | Español |
+| Французский | fr | Français |
+| Немецкий | de | Deutsch |
+| Итальянский | it | Italiano |
+| Португальский | pt | Português |
+| Японский | ja | 日本語 |
+| Китайский | zh | 中文 |
+
+## 🔄 Правила выбора языка по умолчанию
+
+1. Если в `localStorage` есть язык — используется он
+2. Иначе используется язык браузера
+3. Если язык браузера неизвестен — используется русский (`ru`)
 
 ## 🔍 Как убедиться, что все ключи добавлены?
 
@@ -354,7 +365,7 @@ node check-i18n.js
 Рекомендуется добавлять новый язык, если:
 
 1. ✅ Все 100+ ключей переведены правильно
-2. ✅ Кнопка добавлена в HTML
+2. ✅ Опция добавлена в HTML
 3. ✅ Протестировано в браузере
 4. ✅ Проверено, что переводы качественные (используйте Гугл Переводчик, но затем отредактируйте вручную)
 5. ✅ Обновлена документация
@@ -378,10 +389,10 @@ node check-i18n.js
 ## ✨ Пример: Полная интеграция испанского
 
 ### 1. Отредактировать app.js ✅
-Добавлены все 100+ переводов для `es`
+Добавлены все переводы для `es`
 
 ### 2. Отредактировать index.html ✅
-Добавлена кнопка `<button data-lang="es">ES</button>`
+Добавлена опция `<option value="es" data-i18n="lang.es">Español</option>`
 
 ### 3. Протестировать ✅
 - Переключение на ES работает
@@ -389,7 +400,6 @@ node check-i18n.js
 - Выбор сохраняется в localStorage
 
 ### 4. Обновить документацию ✅
-- SUMMARY.md: добавить испанский в статистику
 - I18N_GUIDE.md: добавить информацию об испанском
 
 ### 5. Готово! 🎉
@@ -400,4 +410,3 @@ node check-i18n.js
 **Нужна помощь?** Обратитесь к `I18N_GUIDE.md` для более подробной информации о системе переводов.
 
 **Счастливой локализации! 🌍**
-
