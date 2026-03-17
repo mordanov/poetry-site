@@ -6,10 +6,16 @@ on:
       - main
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   test-backend:
     runs-on: ubuntu-latest
     name: Backend Tests
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout code
@@ -20,29 +26,22 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+          cache-dependency-path: backend/requirements*.txt
 
       - name: Install dependencies
         run: |
-          cd backend
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
       - name: Run tests with coverage
-        run: |
-          cd backend
-          pytest test_main.py -v --tb=short --cov=. --cov-report=term-missing
-
-      - name: Test results
-        if: success()
-        run: echo "✅ Backend tests passed!"
-
-      - name: Test failed
-        if: failure()
-        run: echo "❌ Backend tests failed!"
+        run: pytest test_main.py -v --tb=short --cov=. --cov-report=term-missing
 
   test-frontend:
     runs-on: ubuntu-latest
     name: Frontend Tests
+    defaults:
+      run:
+        working-directory: frontend
 
     steps:
       - name: Checkout code
@@ -53,25 +52,20 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/package.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend/package.json
 
       - name: Install dependencies
         run: |
-          cd frontend
-          npm ci
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Run tests with coverage
-        run: |
-          cd frontend
-          npm test -- --coverage
-
-      - name: Test results
-        if: success()
-        run: echo "✅ Frontend tests passed!"
-
-      - name: Test failed
-        if: failure()
-        run: echo "❌ Frontend tests failed!"
+        run: npm test -- --coverage --runInBand
 
   status-check:
     runs-on: ubuntu-latest
@@ -82,7 +76,4 @@ jobs:
       - name: All tests passed
         run: |
           echo "✅ All tests passed successfully!"
-          echo "✅ Backend tests: PASSED"
-          echo "✅ Frontend tests: PASSED"
           echo "🚀 Pull request is ready for review"
-
