@@ -2,10 +2,12 @@
 
 ## 📖 Обзор
 
-Сайт Poetry Site поддерживает полную локализацию интерфейса на **двух языках**:
+Сайт Poetry Site поддерживает полную локализацию интерфейса на **четырех языках**:
 
 - 🇬🇧 **English** (EN)
 - 🇷🇺 **Русский** (RU)
+- 🇪🇸 **Español** (ES)
+- 🇫🇷 **Français** (FR)
 
 Система переводов построена на **клиентской стороне** с помощью JavaScript и `localStorage`.
 
@@ -17,20 +19,30 @@
 
 1. Проверяется `localStorage` на наличие сохранённого языка
 2. Если нет — используется язык браузера (`navigator.language`)
-3. Если браузер настроен на русский → выбирается русский
-4. Иначе → английский по умолчанию
+3. Поддерживаются `ru`, `es`, `fr`, `en`
+4. Если язык браузера неизвестен — используется русский
 
 ```javascript
-let currentLang = (localStorage.getItem('lang') || (navigator.language || 'en'))
-  .toLowerCase()
-  .startsWith('ru')
-  ? 'ru'
-  : 'en';
+let currentLang = (() => {
+  const stored = localStorage.getItem('lang');
+  const browser = (navigator.language || '').toLowerCase();
+  const detected = browser.startsWith('ru')
+    ? 'ru'
+    : browser.startsWith('es')
+      ? 'es'
+      : browser.startsWith('fr')
+        ? 'fr'
+        : browser.startsWith('en')
+          ? 'en'
+          : 'ru';
+  const initial = stored || detected || 'ru';
+  return I18N[initial] ? initial : 'ru';
+})();
 ```
 
 ### 2. Переключение языка
 
-При нажатии на кнопку языка (EN/RU):
+При выборе языка в выпадающем списке:
 
 1. Текущий язык меняется
 2. Сохраняется в `localStorage`
@@ -44,7 +56,7 @@ function setLanguage(lang, rerender = true) {
   localStorage.setItem('lang', lang);           // Сохранение
   document.documentElement.lang = lang;         // Обновление HTML lang
   applyTranslations();                          // Перевод элементов
-  updateLangUI();                               // Обновление UI кнопок
+  updateLangUI();                               // Обновление UI списка
   if (rerender) handleRoute();                  // Перерендеринг страницы
 }
 ```
@@ -201,9 +213,13 @@ I18N.ru['hero.title'] = 'Слова<br><em>в темноте</em>';
 ### Внешний вид в навигации
 
 ```html
-<div class="lang-switch" role="group" aria-label="Language">
-  <button type="button" data-lang="en" class="lang-btn">EN</button>
-  <button type="button" data-lang="ru" class="lang-btn">RU</button>
+<div class="lang-switch" aria-label="Language">
+  <select class="lang-select" id="lang-select" aria-label="Language">
+    <option value="en" data-i18n="lang.en">English</option>
+    <option value="ru" data-i18n="lang.ru">Русский</option>
+    <option value="es" data-i18n="lang.es">Español</option>
+    <option value="fr" data-i18n="lang.fr">Français</option>
+  </select>
 </div>
 ```
 
@@ -211,17 +227,26 @@ I18N.ru['hero.title'] = 'Слова<br><em>в темноте</em>';
 
 ```css
 .lang-switch {
-  display: inline-flex; 
-  align-items: center; 
-  gap: 0.35rem;
-  border: 1px solid var(--border); 
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 2px;
+  padding: 2px 6px;
 }
 
-.lang-btn.active {
-  background: var(--ink); 
-  color: var(--cream);
+.lang-select {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  appearance: none;
 }
 ```
 
@@ -229,19 +254,18 @@ I18N.ru['hero.title'] = 'Слова<br><em>в темноте</em>';
 
 ```javascript
 function initLanguage() {
-  setLanguage(currentLang, false);  // Установка начального языка
-  
-  // Добавление обработчиков на кнопки
-  document.querySelectorAll('.lang-switch button').forEach(btn => {
-    btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
-  });
+  setLanguage(currentLang, false);
+  const select = document.getElementById('lang-select');
+  if (select) {
+    select.addEventListener('change', e => setLanguage(e.target.value));
+  }
 }
 ```
 
 ## 🔄 Поток выполнения смены языка
 
 ```
-Пользователь нажимает на кнопку языка (EN/RU)
+Пользователь выбирает язык в выпадающем списке
           ↓
     setLanguage(lang)
           ↓
@@ -255,7 +279,7 @@ function initLanguage() {
   └─────────────────────────────────────┘
           ↓
   applyTranslations() переводит все элементы
-  updateLangUI() обновляет активную кнопку
+  updateLangUI() обновляет выбранный язык
           ↓
   Страница отображается на новом языке
 ```
@@ -268,7 +292,7 @@ function initLanguage() {
 localStorage.setItem('lang', 'ru');  // Сохранено как 'ru'
 
 // При следующем визите:
-let currentLang = localStorage.getItem('lang') || 'en';
+let currentLang = localStorage.getItem('lang') || 'ru';
 // currentLang = 'ru'
 ```
 
@@ -292,14 +316,10 @@ const I18N = {
 }
 ```
 
-### 2. Обновите кнопки переключения
+### 2. Обновите опции переключателя
 
 ```html
-<div class="lang-switch" role="group" aria-label="Language">
-  <button type="button" data-lang="en" class="lang-btn">EN</button>
-  <button type="button" data-lang="ru" class="lang-btn">RU</button>
-  <button type="button" data-lang="fr" class="lang-btn">FR</button>  <!-- Новое -->
-</div>
+<option value="fr" data-i18n="lang.fr">Français</option>
 ```
 
 ### 3. Функция автоматически поддержит новый язык
@@ -318,9 +338,8 @@ function setLanguage(lang, rerender = true) {
 
 ```javascript
 function t(key, vars = {}) {
-  const dict = I18N[currentLang] || I18N.en;
-  let str = dict[key] || I18N.en[key] || key;  // Fallback
-  // Возвращает само значение key, если перевод не найден
+  const dict = I18N[currentLang] || I18N.ru;
+  let str = dict[key] || I18N.ru[key] || I18N.en[key] || key;  // Fallback
   return str;
 }
 ```
@@ -347,7 +366,7 @@ t('nonexistent.key');  // Вернёт: 'nonexistent.key'
 
 ```
 Всего ключей в словаре: 100+
-Поддерживаемые языки: 2 (EN, RU)
+Поддерживаемые языки: 4 (EN, RU, ES, FR)
 Категории переводов: 9
 Статус: 100% локализирован ✅
 ```
@@ -355,4 +374,3 @@ t('nonexistent.key');  // Вернёт: 'nonexistent.key'
 ---
 
 **Нужна помощь с переводами?** Отредактируйте словарь в `/frontend/static/js/app.js` и перезагрузите страницу.
-

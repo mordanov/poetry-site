@@ -5,7 +5,7 @@
 ## 📋 План действий
 
 1. Добавить словарь переводов в `I18N`
-2. Добавить кнопку переключения
+2. Добавить язык в выпадающий список
 3. Протестировать
 4. (Опционально) Обновить документацию
 
@@ -30,17 +30,17 @@ const I18N = {
 ```javascript
 const I18N = {
   en: {
-    'site.title': '{POET_NAME} — Poetry',
+    'site.title': 'Lev Gorev — Poetry',
     'nav.home': 'Home',
     // ... все остальные ключи
   },
   ru: {
-    'site.title': '{POET_NAME} — Poetry',
+    'site.title': 'Lev Gorev — Poetry',
     'nav.home': 'Главная',
     // ... все остальные ключи
   },
   es: {  // ← НОВОЕ: Испанский
-    'site.title': '{POET_NAME} — Poesía',
+    'site.title': 'Lev Gorev — Poesía',
     'nav.home': 'Inicio',
     'nav.poems': 'Poemas',
     'nav.about': 'Acerca de',
@@ -48,7 +48,7 @@ const I18N = {
     'nav.login': 'Iniciar sesión',
     'nav.logout': 'Cerrar sesión',
     'hero.title': 'Palabras<br><em>en la oscuridad</em>',
-    'hero.subtitle': 'Una colección de versos de {POET_NAME}',
+    'hero.subtitle': 'Una colección de versos de Lev Gorev',
     'hero.cta': 'Leer los poemas →',
     'section.latest': 'Últimos',
     'poems.title': 'Poemas',
@@ -164,7 +164,7 @@ F5 или Cmd+R
 
 | Элемент | Должно быть |
 |---------|-----------|
-| Заголовок | "{POET_NAME} — Poesía" |
+| Заголовок | "Lev Gorev — Poesía" |
 | Меню | "Inicio", "Poemas", "Acerca de" |
 | Кнопка "Login" | "Iniciar sesión" |
 | Кнопка "Logout" | "Cerrar sesión" |
@@ -189,7 +189,7 @@ F5 или Cmd+R
 
 ```javascript
 'fr': {
-  'site.title': '{POET_NAME} — Poésie',
+  'site.title': 'Lev Gorev — Poésie',
   'nav.home': 'Accueil',
   'nav.poems': 'Poèmes',
   'nav.about': 'À propos',
@@ -206,7 +206,7 @@ F5 или Cmd+R
 
 ```javascript
 'de': {
-  'site.title': '{POET_NAME} — Poesie',
+  'site.title': 'Lev Gorev — Poesie',
   'nav.home': 'Startseite',
   'nav.poems': 'Gedichte',
   'nav.about': 'Über',
@@ -223,7 +223,7 @@ F5 или Cmd+R
 
 ```javascript
 'it': {
-  'site.title': '{POET_NAME} — Poesia',
+  'site.title': 'Lev Gorev — Poesia',
   'nav.home': 'Home',
   'nav.poems': 'Poesie',
   'nav.about': 'Chi sono',
