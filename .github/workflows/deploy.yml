@@ -129,30 +129,25 @@ jobs:
           # --- Rebuild shared stack from web-folders ---
           cd "$WEB_FOLDERS_DIR"
 
-          echo "Building containers..."
-          docker compose build poetry-backend nginx
-          docker compose up -d --remove-orphans
+          if [ ! -f ./deploy-one-db.sh ]; then
+            echo "deploy-one-db.sh not found in $WEB_FOLDERS_DIR"
+            exit 1
+          fi
 
-          echo "Waiting for service..."
-          sleep 6
-
-          if curl -fsS http://localhost/api/health > /dev/null; then
-            echo "Health check passed"
+          if bash ./deploy-one-db.sh; then
+            echo "Shared stack deployment passed"
           else
-            echo "Health check failed -> rollback"
+            echo "Deployment failed -> rollback"
 
             if [ -n "$PREVIOUS_COMMIT" ]; then
               cd "$POETRY_DIR"
               git reset --hard "$PREVIOUS_COMMIT"
               cd "$WEB_FOLDERS_DIR"
-              docker compose build poetry-backend nginx
-              docker compose up -d
+              bash ./deploy-one-db.sh || true
             fi
 
             exit 1
           fi
-
-          docker compose ps
 
           # Hide token from git config after successful sync.
           git -C "$POETRY_DIR" remote set-url origin "https://github.com/$REPO.git"

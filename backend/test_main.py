@@ -7,7 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # Set test environment variables before importing app
-os.environ['DB_PATH'] = ':memory:'
+# DATABASE_URL must be set before database.py is imported
+os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 os.environ['UPLOADS_DIR'] = '/tmp/test_uploads'
 os.environ['SECRET_KEY'] = 'test-secret-key'
 os.environ['POET_NAME'] = 'Test Poet'
@@ -121,7 +122,7 @@ def test_get_poems_with_data(db_session):
         uuid=str(uuid.uuid4()),
         title="Test Poem",
         body="This is a test poem\nWith multiple lines",
-        is_draft=0
+        is_draft=False
     )
     db_session.add(poem)
     db_session.commit()
@@ -140,7 +141,7 @@ def test_draft_poems_not_visible_to_public(db_session):
         uuid=str(uuid.uuid4()),
         title="Draft Poem",
         body="Draft content",
-        is_draft=1
+        is_draft=True
     )
     db_session.add(draft_poem)
     db_session.commit()
@@ -170,7 +171,7 @@ def test_poem_model_creation(db_session):
         uuid=str(uuid.uuid4()),
         title="Model Test",
         body="Testing ORM model",
-        is_draft=0
+        is_draft=False
     )
     db_session.add(poem)
     db_session.commit()
@@ -218,7 +219,7 @@ def test_comment_model_creation(db_session):
         uuid=str(uuid.uuid4()),
         title="Poem for Comments",
         body="Test",
-        is_draft=0
+        is_draft=False
     )
     db_session.add(poem)
     db_session.commit()
@@ -246,7 +247,7 @@ def test_poem_delete_cascade(db_session):
         uuid=str(uuid.uuid4()),
         title="To Delete",
         body="Test",
-        is_draft=0
+        is_draft=False
     )
     db_session.add(poem)
     db_session.commit()
@@ -277,7 +278,7 @@ def test_poem_uuid_uniqueness(db_session):
         uuid=test_uuid,
         title="First",
         body="Test",
-        is_draft=0
+        is_draft=False
     )
     db_session.add(poem1)
     db_session.commit()
@@ -287,7 +288,7 @@ def test_poem_uuid_uniqueness(db_session):
         uuid=test_uuid,
         title="Second",
         body="Test",
-        is_draft=0
+        is_draft=False
     )
     db_session.add(poem2)
 
@@ -304,11 +305,8 @@ def test_poet_name_from_env():
     assert poet_name == "Test Poet"
 
 
-def test_db_path_from_env():
-    """Test that DB_PATH is read from environment"""
-    db_path = os.getenv("DB_PATH", "/app/data/poetry.db")
-    assert db_path == ":memory:"
-
-
-
-
+def test_database_url_from_env():
+    """Test that DATABASE_URL is read from environment"""
+    database_url = os.getenv("DATABASE_URL")
+    assert database_url is not None
+    assert "sqlite" in database_url  # in-memory SQLite for tests

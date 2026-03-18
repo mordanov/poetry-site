@@ -60,7 +60,7 @@ def _poem_to_dict(poem: Poem, comment_count: Optional[int] = None) -> dict:
         "title": poem.title,
         "body": poem.body,
         "image_url": _image_url(poem),
-        "is_draft": poem.is_draft,
+        "is_draft": int(poem.is_draft) if poem.is_draft is not None else 0,
         "created_at": poem.created_at.isoformat(),
         "updated_at": poem.updated_at.isoformat(),
         "tags": [t.name for t in poem.tags]
@@ -83,7 +83,7 @@ def list_poems(
     if admin:
         query = db.query(Poem).order_by(desc(Poem.is_draft), desc(Poem.created_at))
     else:
-        query = db.query(Poem).filter(Poem.is_draft == 0).order_by(desc(Poem.created_at))
+        query = db.query(Poem).filter(Poem.is_draft == False).order_by(desc(Poem.created_at))
 
     if tag:
         query = query.join(Poem.tags).filter(Tag.name == tag.lower())
@@ -149,7 +149,7 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
             "body": poem.body,
             "tags": [t.name for t in poem.tags],
             "image_filename": poem.image_filename,
-            "is_draft": poem.is_draft,
+            "is_draft": int(poem.is_draft) if poem.is_draft is not None else 0,
             "created_at": poem.created_at.isoformat(),
             "updated_at": poem.updated_at.isoformat()
         })
@@ -234,7 +234,7 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
                         uuid=poem_uuid,
                         title=poem_data.get("title", ""),
                         body=poem_data["body"],
-                        is_draft=poem_data.get("is_draft", 0),
+                        is_draft=bool(poem_data.get("is_draft", 0)),
                         created_at=datetime.fromisoformat(poem_data.get("created_at")) if poem_data.get("created_at") else datetime.utcnow(),
                         updated_at=datetime.fromisoformat(poem_data.get("updated_at")) if poem_data.get("updated_at") else datetime.utcnow()
                     )
@@ -356,7 +356,7 @@ def get_poem(poem_id: int, db: Session = Depends(get_db)):
 @router.post("", status_code=201)
 def create_poem(data: PoemIn, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Create a new poem"""
-    poem = Poem(title=data.title, body=data.body, is_draft=data.is_draft)
+    poem = Poem(title=data.title, body=data.body, is_draft=bool(data.is_draft))
 
     for tag_name in data.tags:
         tag_name = tag_name.strip().lower()
@@ -401,7 +401,7 @@ def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_curre
     if data.body is not None:
         poem.body = data.body
     if data.is_draft is not None:
-        poem.is_draft = data.is_draft
+        poem.is_draft = bool(data.is_draft)
 
     if data.tags is not None:
         poem.tags.clear()

@@ -56,11 +56,13 @@ app.include_router(comments.router, prefix="/api/comments", tags=["comments"])
 - `GET /api/health` — проверка здоровья API
 
 ### backend/database.py
-**Назначение:** Управление SQLite БД, инициализация таблиц.
+**Назначение:** Управление подключением к PostgreSQL и сессиями SQLAlchemy.
 
 **Что содержит:**
-- Функция `get_db()` — получить подключение к БД
-- Функция `init_db()` — создать таблицы и добавить начальные данные
+- `DATABASE_URL` (обязательная переменная окружения)
+- `engine` и `SessionLocal`
+- `get_db()` — dependency для FastAPI
+- `init_db()` — создание схемы и сиды (`admin`, `about`)
 
 **Таблицы:**
 - **admin** — учётные данные администратора (username, password_hash)
@@ -73,13 +75,11 @@ app.include_router(comments.router, prefix="/api/comments", tags=["comments"])
 **Пример использования:**
 ```python
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys=ON")
+    db = SessionLocal()
     try:
-        yield conn  # Используется как dependency injection в FastAPI
+        yield db
     finally:
-        conn.close()
+        db.close()
 ```
 
 ### backend/requirements.txt
@@ -362,13 +362,14 @@ location / {
 - **certbot** — Получение SSL сертификатов
 
 **Volumes:**
-- `poetry_data` — сохранение БД между запусками
+- `poetry_postgres_data` — сохранение данных PostgreSQL между запусками
+- `poetry_uploads_data` — изображения к стихам
 - `certbot_certs` — сохранение SSL сертификатов
 - `certbot_www` — директория для ACME challenge
 
 **Переменные окружения:**
 ```yaml
-DB_PATH=/data/poetry.db           # Путь к БД
+DATABASE_URL=postgresql://poetry_user:password@db:5432/poetry
 SECRET_KEY=...                    # JWT секретный ключ
 ADMIN_USERNAME=admin              # Логин администратора
 ADMIN_PASSWORD=changeme123        # Пароль администратора
@@ -433,13 +434,13 @@ frontend/static/js/app.js    678 lines ~25 KB
            │
            │ SQL запросы
            ▼
-┌─ SQLite Database ──────────────┐
-│ - /data/poetry.db              │
-│ - 6 таблиц                     │
-└─────────────────────────────────┘
+┌─ PostgreSQL Database ───────────┐
+│ - db:5432                       │
+│ - database: poetry              │
+│ - 6 таблиц                      │
+└──────────────────────────────────┘
 ```
 
 ---
 
 **Нужна информация о конкретном файле?** Смотрите комментарии в самом коде!
-

@@ -20,7 +20,7 @@
 poetry-site/
 ├── backend/
 │   ├── main.py              # FastAPI app entry point
-│   ├── database.py          # SQLite setup & session management
+│   ├── database.py          # PostgreSQL setup & session management
 │   ├── models.py            # SQLAlchemy ORM models
 │   ├── requirements.txt
 │   ├── Dockerfile
@@ -54,13 +54,13 @@ poetry-site/
 Запуск всего стека через Docker Compose:
 
 ```bash
-cd /Users/aleksandr/Local/poetry-site
+cd /Users/aleksandr/Local/web-projects/poetry-site
 docker-compose up
 ```
 
-Откройте `http://localhost`.
+Откройте `http://localhost:8080`.
 
-Если запускать backend напрямую — используйте те же переменные окружения, что и в Docker (`DB_PATH`, `UPLOADS_DIR`, `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
+Если запускать backend напрямую — используйте те же переменные окружения, что и в Docker (`DATABASE_URL`, `UPLOADS_DIR`, `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
 
 ---
 
@@ -119,4 +119,3 @@ Interactive docs: `/api/docs` и `/api/redoc`.
 - Добавление языка: `documentation/ADD_NEW_LANGUAGE.md`
 - Тестирование: `documentation/TESTING_GUIDE.md`
 - Экспорт/импорт: `documentation/EXPORT_IMPORT_GUIDE.md`
-

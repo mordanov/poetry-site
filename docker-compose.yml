@@ -1,18 +1,36 @@
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-poetry}
+      POSTGRES_USER: ${POSTGRES_USER:-poetry_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-poetry-db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-poetry_user} -d ${POSTGRES_DB:-poetry}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build: ./backend
     restart: unless-stopped
     environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-poetry_user}:${POSTGRES_PASSWORD:-change-me-poetry-db}@db:5432/${POSTGRES_DB:-poetry}
       SECRET_KEY: ${SECRET_KEY:-change-this-secret-in-production}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
-      DB_PATH: /app/data/poetry.db
       UPLOADS_DIR: /app/data/uploads/poems
       POET_NAME: ${POET_NAME:-Famous poet}
     volumes:
-      - backend_data:/app/data
+      - uploads_data:/app/data/uploads
     expose:
       - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
     image: nginx:alpine
@@ -27,4 +45,5 @@ services:
       - ./frontend/static:/var/www/html/static:ro
 
 volumes:
-  backend_data:
+  postgres_data:
+  uploads_data:

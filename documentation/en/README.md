@@ -1,6 +1,6 @@
 # poetry-site — Poetry Site
 
-Personal poetry site for poetry-site. Built with **FastAPI** backend, **Vanilla JS** SPA frontend, **SQLite** database, served via **Nginx**, deployed with **Docker Compose**.
+Personal poetry site for poetry-site. Built with **FastAPI** backend, **Vanilla JS** SPA frontend, **PostgreSQL** database, served via **Nginx**, deployed with **Docker Compose**.
 
 ## Features
 - Poem CRUD with tags and UUID-based public links
@@ -20,7 +20,7 @@ Personal poetry site for poetry-site. Built with **FastAPI** backend, **Vanilla 
 poetry-site/
 ├── backend/
 │   ├── main.py              # FastAPI app entry point
-│   ├── database.py          # SQLite setup & session management
+│   ├── database.py          # PostgreSQL setup & session management
 │   ├── models.py            # SQLAlchemy ORM models
 │   ├── requirements.txt
 │   ├── Dockerfile
@@ -54,13 +54,13 @@ poetry-site/
 Run the full stack with Docker Compose:
 
 ```bash
-cd /Users/aleksandr/Local/poetry-site
+cd /Users/aleksandr/Local/web-projects/poetry-site
 docker-compose up
 ```
 
-Open `http://localhost`.
+Open `http://localhost:8080`.
 
-If you want to run the backend directly, use the same environment variables as Docker (`DB_PATH`, `UPLOADS_DIR`, `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
+If you want to run the backend directly, use the same environment variables as Docker (`DATABASE_URL`, `UPLOADS_DIR`, `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
 
 ---
 

@@ -234,14 +234,11 @@ curl http://localhost/api/about
 #### 7.1 Проверка БД
 
 ```bash
-# Войдите в контейнер backend
-docker-compose exec backend bash
-
-# Откройте SQLite
-sqlite3 /data/poetry.db
+# Войдите в контейнер db
+docker-compose exec db psql -U ${POSTGRES_USER:-poetry_user} -d ${POSTGRES_DB:-poetry}
 
 # Проверьте таблицы
-.tables
+\dt
 # Должны видеть: admin, about, poems, tags, poem_tags, comments
 
 # Посмотрите данные
@@ -250,7 +247,7 @@ SELECT * FROM poems;
 SELECT * FROM comments;
 
 # Выйдите
-.exit
+\q
 ```
 
 #### 7.2 Проверка сохранения данных
@@ -308,7 +305,7 @@ docker-compose exec nginx bash
 
 # Внутри контейнера можно запустить команды:
 ls /app
-cat /data/poetry.db (неработает, это бинарный файл)
+echo $DATABASE_URL
 ```
 
 ## 🧼 Чистка и переустановка

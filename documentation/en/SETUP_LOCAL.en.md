@@ -6,28 +6,31 @@
 
 ## Run with Docker Compose
 ```bash
-cd /Users/aleksandr/Local/poetry-site
+cd /Users/aleksandr/Local/web-projects/poetry-site
 docker-compose up
 ```
-Open `http://localhost`.
+Open `http://localhost:8080`.
 
 ## Environment variables
 Copy `.env.example` to `.env` and set:
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL`
 - `SECRET_KEY`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
-- Optional: `DB_PATH`, `UPLOADS_DIR`
+- Optional: `POET_NAME`, `UPLOADS_DIR`
 
 ## Common issues
-- **Port 80 in use**: change ports in `docker-compose.yml` to `8080:80` and open `http://localhost:8080`.
+- **Port 8080 in use**: change `POETRY_HTTP_PORT` in `.env`.
 - **Stale data**: `docker-compose down -v` then `docker-compose up`.
-- **Cached frontend**: hard refresh or clear cache.
+- **Database not ready**: check `docker-compose logs db`.
 
 ## Useful links
-- `documentation/QUICK_COMMANDS.en.md`
-- `documentation/TESTING_GUIDE.en.md`
+- `documentation/en/QUICK_COMMANDS.en.md`
+- `documentation/en/PROJECT_STRUCTURE.en.md`
 
-**Русская версия:** `SETUP_LOCAL.md`
+**Русская версия:** `documentation/ru/SETUP_LOCAL.md`
 
-*Last updated: February 28, 2026*
-
+*Last updated: March 18, 2026*

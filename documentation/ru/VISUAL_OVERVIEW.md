@@ -63,9 +63,10 @@
            │ SQL queries
            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  💾 SQLITE DATABASE                         │
+│                💾 POSTGRESQL DATABASE                       │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │ /data/poetry.db                                      │   │
+│  │ service: db                                         │   │
+│  │ database: poetry                                    │   │
 │  │ ┌────────────────────────────────────────────────┐   │
 │  │ │ TABLES:                                        │   │
 │  │ │ • admin (username, password_hash)              │   │
@@ -305,7 +306,7 @@ poetry-site/
 ┌───────────────────────────────────────┐
 │  BACKEND                              │
 │  ✅ Python 3.12 + FastAPI            │
-│  ✅ SQLite БД (6 таблиц)             │
+│  ✅ PostgreSQL БД (6 таблиц)          │
 │  ✅ JWT аутентификация               │
 │  ✅ CRUD операции                    │
 │  ✅ API документация (Swagger)        │

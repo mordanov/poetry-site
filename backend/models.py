@@ -3,7 +3,7 @@ SQLAlchemy ORM Models for Poetry Site
 Defines all database tables using SQLAlchemy declarative base
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, func, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table, func, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -56,7 +56,7 @@ class Poem(Base):
     body = Column(Text, nullable=False)
     image_filename = Column(String(255), nullable=True)
     generation_id = Column(String(255), nullable=True, unique=True, index=True)
-    is_draft = Column(Integer, nullable=False, default=0)
+    is_draft = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

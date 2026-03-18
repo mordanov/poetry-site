@@ -192,15 +192,15 @@ Back up the entire database:
 
 ```bash
 # Dump database to SQL file
-docker compose exec postgres pg_dump -U poetry_user poetry_db > backup_$(date +%Y%m%d).sql
+docker compose exec db pg_dump -U ${POSTGRES_USER:-poetry_user} ${POSTGRES_DB:-poetry} > backup_$(date +%Y%m%d).sql
 
 # Or backup using pg_dumpall for complete backup
-docker compose exec postgres pg_dumpall -U poetry_user > backup_full_$(date +%Y%m%d).sql
+docker compose exec db pg_dumpall -U ${POSTGRES_USER:-poetry_user} > backup_full_$(date +%Y%m%d).sql
 ```
 
 Restore from backup:
 ```bash
-docker compose exec -T postgres psql -U poetry_user poetry_db < backup_20260221.sql
+docker compose exec -T db psql -U ${POSTGRES_USER:-poetry_user} -d ${POSTGRES_DB:-poetry} < backup_20260221.sql
 ```
 
 ### Option 3: Volume Backup
