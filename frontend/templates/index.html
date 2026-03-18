@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1612">
+<meta name="description" content="Poetry collection by Famous poet">
+<title data-i18n="site.title">Famous poet — Poetry</title>
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.svg">
+<link rel="apple-touch-icon" href="/static/LevPoet.jpg">
+<link rel="manifest" href="/static/manifest.json">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IM+Fell+English:ital@0;1&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<div class="grain"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">L·G</a>
+  <ul class="nav-links">
+    <li><a href="/" data-page="home" data-i18n="nav.home">Home</a></li>
+    <li><a href="/poems" data-page="poems" data-i18n="nav.poems">Poems</a></li>
+    <li><a href="/about" data-page="about" data-i18n="nav.about">About</a></li>
+    <li id="nav-admin-link" style="display:none"><a href="/admin" data-page="admin" data-i18n="nav.admin">Admin</a></li>
+  </ul>
+  <div class="nav-right">
+    <span id="nav-login-btn" class="btn-ghost" onclick="showLoginModal()" data-i18n="nav.login">Login</span>
+    <span id="nav-logout-btn" class="btn-ghost" style="display:none" onclick="logout()" data-i18n="nav.logout">Logout</span>
+    <div class="lang-switch" aria-label="Language">
+      <select class="lang-select" id="lang-select" aria-label="Language">
+        <option value="en" data-i18n="lang.en">English</option>
+        <option value="ru" data-i18n="lang.ru">Русский</option>
+        <option value="es" data-i18n="lang.es">Español</option>
+        <option value="fr" data-i18n="lang.fr">Français</option>
+      </select>
+    </div>
+  </div>
+</nav>
+
+<!-- PAGES -->
+<main id="app">
+
+  <!-- HOME PAGE -->
+  <section id="page-home" class="page active">
+    <div class="hero">
+      <div class="hero-ornament">✦</div>
+      <h1 class="hero-title" data-i18n-html="hero.title">Words<br><em>in the dark</em></h1>
+      <p class="hero-sub" data-i18n="hero.subtitle">A collection of verses by Lev Gorev</p>
+      <a href="/poems" class="hero-cta" onclick="navigate('poems'); return false;" data-i18n="hero.cta">Read the poems →</a>
+    </div>
+    <div class="latest-section">
+      <h2 class="section-title"><span data-i18n="section.latest">Latest</span></h2>
+      <div id="home-poems" class="poems-grid"></div>
+    </div>
+  </section>
+
+  <!-- POEMS PAGE -->
+  <section id="page-poems" class="page">
+    <div class="page-header">
+      <h1 data-i18n="poems.title">Poems</h1>
+      <div class="tags-bar" id="tags-bar"></div>
+    </div>
+    <div class="poems-list" id="poems-list"></div>
+    <div class="pagination" id="pagination"></div>
+  </section>
+
+  <!-- SINGLE POEM PAGE -->
+  <section id="page-poem" class="page">
+    <div class="poem-detail" id="poem-detail"></div>
+  </section>
+
+  <!-- ABOUT PAGE -->
+  <section id="page-about" class="page">
+    <div class="about-content" id="about-content"></div>
+  </section>
+
+  <!-- ADMIN PAGE -->
+  <section id="page-admin" class="page">
+    <div class="admin-wrap">
+      <h1 data-i18n="admin.title">Admin</h1>
+      <div class="admin-tabs">
+        <button class="tab active" onclick="adminTab('poems')" data-i18n="admin.tabs.poems">Poems</button>
+        <button class="tab" onclick="adminTab('comments')" data-i18n="admin.tabs.comments">Comments</button>
+        <button class="tab" onclick="adminTab('about')" data-i18n="admin.tabs.about">About Page</button>
+        <button class="tab" onclick="adminTab('password')" data-i18n="admin.tabs.password">Password</button>
+      </div>
+      <div id="admin-poems" class="admin-panel">
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="btn-primary" onclick="showPoemForm()" data-i18n="admin.newPoem">+ New Poem</button>
+          <button class="btn-secondary" onclick="exportPoems()" data-i18n="admin.exportPoems">📥 Export Poems</button>
+          <button class="btn-secondary" onclick="showImportPoems()" data-i18n="admin.importPoems">📤 Import Poems</button>
+        </div>
+        <div id="admin-poem-form" style="display:none"></div>
+        <div id="admin-poems-list" class="admin-list"></div>
+      </div>
+      <div id="admin-comments" class="admin-panel" style="display:none">
+        <div id="admin-comments-list" class="admin-list"></div>
+      </div>
+      <div id="admin-about" class="admin-panel" style="display:none">
+        <form id="about-form" onsubmit="saveAbout(event)">
+          <label><span data-i18n="about.nameLabel">Your Name</span>
+            <input type="text" id="about-name" required>
+          </label>
+          <label><span data-i18n="about.photoLabel">Photo URL</span>
+            <input type="text" id="about-photo" placeholder="https://...">
+          </label>
+          <label><span data-i18n="about.bioLabel">Bio (supports line breaks)</span>
+            <textarea id="about-bio" rows="10"></textarea>
+          </label>
+          <button class="btn-primary" type="submit" data-i18n="about.save">Save</button>
+        </form>
+      </div>
+      <div id="admin-password" class="admin-panel" style="display:none">
+        <form onsubmit="changePassword(event)">
+          <label><span data-i18n="password.current">Current Password</span> <input type="password" id="pw-current"></label>
+          <label><span data-i18n="password.new">New Password</span> <input type="password" id="pw-new"></label>
+          <label><span data-i18n="password.confirm">Confirm New</span> <input type="password" id="pw-confirm"></label>
+          <button class="btn-primary" type="submit" data-i18n="password.change">Change Password</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- LOGIN MODAL -->
+<div id="modal-overlay" class="modal-overlay" onclick="closeModal()"></div>
+<div id="login-modal" class="modal">
+  <h2 data-i18n="auth.title">Admin Login</h2>
+  <form onsubmit="login(event)">
+    <label><span data-i18n="auth.username">Username</span> <input type="text" id="login-user" autocomplete="username"></label>
+    <label><span data-i18n="auth.password">Password</span> <input type="password" id="login-pass" autocomplete="current-password"></label>
+    <div id="login-error" class="error-msg"></div>
+    <button class="btn-primary" type="submit" data-i18n="auth.login">Login</button>
+  </form>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
