@@ -3,7 +3,8 @@ Webhook handlers for Leonardo.AI image generation completion
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from database import get_db
 from models import Poem
 import io
@@ -20,7 +21,7 @@ MAX_IMAGE_SIZE = 1 * 1024 * 1024
 
 
 @router.post("/leonardo/image-generated")
-async def leonardo_image_generated_webhook(payload: dict, db: Session = Depends(get_db)):
+async def leonardo_image_generated_webhook(payload: dict, db: AsyncSession = Depends(get_db)):
     """
     Webhook handler for Leonardo.AI image generation completion.
     Called by Leonardo.AI when image generation is complete.
@@ -65,8 +66,8 @@ async def leonardo_image_generated_webhook(payload: dict, db: Session = Depends(
             print(f"[Leonardo Webhook ERROR] No image URL in first image for {generation_id}", file=sys.stderr)
             raise HTTPException(400, "No image URL in webhook payload")
 
-        # Find poem by generation_id
-        poem = db.query(Poem).filter(Poem.generation_id == generation_id).first()
+        result = await db.execute(select(Poem).where(Poem.generation_id == generation_id))
+        poem = result.scalar_one_or_none()
         if not poem:
             print(f"[Leonardo Webhook ERROR] No poem found for generation {generation_id}", file=sys.stderr)
             raise HTTPException(404, f"Poem not found for generation {generation_id}")
@@ -105,8 +106,8 @@ async def leonardo_image_generated_webhook(payload: dict, db: Session = Depends(
         # Update poem with image
         poem.image_filename = filename
         poem.generation_id = None  # Clear generation_id after processing
-        db.commit()
-        db.refresh(poem)
+        await db.commit()
+        await db.refresh(poem)
 
         print(f"[Leonardo Webhook] Successfully saved image for poem {poem.id}", file=sys.stderr)
 
@@ -123,6 +124,4 @@ async def leonardo_image_generated_webhook(payload: dict, db: Session = Depends(
         error_details = traceback.format_exc()
         print(f"[Leonardo Webhook ERROR] {error_details}", file=sys.stderr)
         raise HTTPException(500, f"Webhook processing failed: {str(e)}")
-
-
 

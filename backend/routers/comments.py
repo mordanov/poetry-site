@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
@@ -14,64 +14,58 @@ class CommentIn(BaseModel):
     body: str
 
 @router.get("/admin/all")
-def get_all_comments(admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Get all comments for admin with poem information"""
-    comments = db.query(Comment).join(Poem).order_by(desc(Comment.created_at)).all()
-
-    result = []
-    for comment in comments:
-        poem = comment.poem
-        result.append({
-            "id": comment.id,
-            "poem_id": comment.poem_id,
-            "poem_uuid": poem.uuid,
-            "poem_title": poem.title or "Untitled",
-            "author": comment.author,
-            "body": comment.body,
-            "created_at": comment.created_at.isoformat()
-        })
-
-    return result
+async def get_all_comments(admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Comment).join(Poem).order_by(desc(Comment.created_at))
+    )
+    comments = result.scalars().all()
+    return [
+        {
+            "id": c.id,
+            "poem_id": c.poem_id,
+            "poem_uuid": c.poem.uuid,
+            "poem_title": c.poem.title or "Untitled",
+            "author": c.author,
+            "body": c.body,
+            "created_at": c.created_at.isoformat()
+        }
+        for c in comments
+    ]
 
 @router.get("/{poem_id}")
-def get_comments(poem_id: int, db: Session = Depends(get_db)):
-    """Get all comments for a poem"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def get_comments(poem_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).where(Poem.id == poem_id))
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
 
-    comments = db.query(Comment).filter(Comment.poem_id == poem_id).order_by(Comment.created_at).all()
-
-    result = []
-    for comment in comments:
-        result.append({
-            "id": comment.id,
-            "poem_id": comment.poem_id,
-            "author": comment.author,
-            "body": comment.body,
-            "created_at": comment.created_at.isoformat()
-        })
-
-    return result
+    result = await db.execute(
+        select(Comment).where(Comment.poem_id == poem_id).order_by(Comment.created_at)
+    )
+    comments = result.scalars().all()
+    return [
+        {
+            "id": c.id,
+            "poem_id": c.poem_id,
+            "author": c.author,
+            "body": c.body,
+            "created_at": c.created_at.isoformat()
+        }
+        for c in comments
+    ]
 
 @router.post("/{poem_id}", status_code=201)
-def add_comment(poem_id: int, data: CommentIn, db: Session = Depends(get_db)):
-    """Add a comment to a poem"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def add_comment(poem_id: int, data: CommentIn, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).where(Poem.id == poem_id))
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
 
     author = (data.author or "Anonymous").strip() or "Anonymous"
-
-    comment = Comment(
-        poem_id=poem_id,
-        author=author,
-        body=data.body.strip()
-    )
-
+    comment = Comment(poem_id=poem_id, author=author, body=data.body.strip())
     db.add(comment)
-    db.commit()
-    db.refresh(comment)
+    await db.commit()
+    await db.refresh(comment)
 
     return {
         "id": comment.id,
@@ -82,14 +76,11 @@ def add_comment(poem_id: int, data: CommentIn, db: Session = Depends(get_db)):
     }
 
 @router.delete("/{comment_id}")
-def delete_comment(comment_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Delete a comment (admin only)"""
-    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+async def delete_comment(comment_id: int, admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Comment).where(Comment.id == comment_id))
+    comment = result.scalar_one_or_none()
     if not comment:
         raise HTTPException(404, "Comment not found")
-
-    db.delete(comment)
-    db.commit()
-
+    await db.delete(comment)
+    await db.commit()
     return {"ok": True}
-

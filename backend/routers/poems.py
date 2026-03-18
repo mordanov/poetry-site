@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, desc
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -69,44 +70,52 @@ def _poem_to_dict(poem: Poem, comment_count: Optional[int] = None) -> dict:
         payload["comment_count"] = comment_count
     return payload
 
+async def _get_or_create_tag(db: AsyncSession, name: str) -> Tag:
+    result = await db.execute(select(Tag).where(Tag.name == name))
+    tag = result.scalar_one_or_none()
+    if not tag:
+        tag = Tag(name=name)
+        db.add(tag)
+        await db.flush()
+    return tag
+
 # ====== LIST & FILTER ======
 @router.get("")
-def list_poems(
+async def list_poems(
     tag: Optional[str] = None,
     page: int = 1,
     limit: int = 10,
     admin: Optional[Admin] = Depends(get_optional_admin),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    """List poems - admin sees all, public sees only published"""
-    # Admin sees all poems with drafts first, public sees only published
+    stmt = select(Poem).options(selectinload(Poem.tags))
     if admin:
-        query = db.query(Poem).order_by(desc(Poem.is_draft), desc(Poem.created_at))
+        stmt = stmt.order_by(desc(Poem.is_draft), desc(Poem.created_at))
     else:
-        query = db.query(Poem).filter(Poem.is_draft == False).order_by(desc(Poem.created_at))
+        stmt = stmt.where(Poem.is_draft == False).order_by(desc(Poem.created_at))
 
     if tag:
-        query = query.join(Poem.tags).filter(Tag.name == tag.lower())
+        stmt = stmt.join(Poem.tags).where(Tag.name == tag.lower())
 
-    # Get total count
-    total = query.count()
+    total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = total_result.scalar_one()
 
-    # Apply pagination
     offset = (page - 1) * limit
-    poems = query.offset(offset).limit(limit).all()
+    result = await db.execute(stmt.offset(offset).limit(limit))
+    poems = result.scalars().all()
 
-    poem_ids = [poem.id for poem in poems]
+    poem_ids = [p.id for p in poems]
     comment_counts = {}
     if poem_ids:
-        comment_counts = dict(
-            db.query(Comment.poem_id, func.count(Comment.id))
-            .filter(Comment.poem_id.in_(poem_ids))
+        cc_result = await db.execute(
+            select(Comment.poem_id, func.count(Comment.id))
+            .where(Comment.poem_id.in_(poem_ids))
             .group_by(Comment.poem_id)
-            .all()
         )
+        comment_counts = dict(cc_result.all())
 
     return {
-        "poems": [_poem_to_dict(poem, comment_counts.get(poem.id, 0)) for poem in poems],
+        "poems": [_poem_to_dict(p, comment_counts.get(p.id, 0)) for p in poems],
         "total": total,
         "page": page,
         "limit": limit,
@@ -114,30 +123,30 @@ def list_poems(
     }
 
 @router.get("/tags")
-def list_tags(db: Session = Depends(get_db)):
-    """Get all tags with poem counts"""
-    tags = db.query(Tag).all()
-    result = []
-    for tag in tags:
-        count = db.query(func.count(Poem.id)).join(Poem.tags).filter(Tag.id == tag.id).scalar()
-        if count > 0:  # Only include tags with at least 1 poem
-            result.append({"name": tag.name, "count": count})
-    result.sort(key=lambda x: x["count"], reverse=True)
-    return result
+async def list_tags(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Tag).options(selectinload(Tag.poems)))
+    tags = result.scalars().all()
+    out = [{"name": t.name, "count": len(t.poems)} for t in tags if len(t.poems) > 0]
+    out.sort(key=lambda x: x["count"], reverse=True)
+    return out
 
 # ====== SPECIAL ROUTES (before {poem_id}) ======
 @router.get("/uuid/{poem_uuid}")
-def get_poem_by_uuid(poem_uuid: str, db: Session = Depends(get_db)):
-    """Get a specific poem by UUID"""
-    poem = db.query(Poem).filter(Poem.uuid == poem_uuid).first()
+async def get_poem_by_uuid(poem_uuid: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Poem).options(selectinload(Poem.tags)).where(Poem.uuid == poem_uuid)
+    )
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
     return _poem_to_dict(poem)
 
 @router.get("/export/poems")
-def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Export poems, images, and comments into a zip archive (admin only)"""
-    poems = db.query(Poem).order_by(Poem.uuid).all()
+async def export_poems(admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Poem).options(selectinload(Poem.tags), selectinload(Poem.comments)).order_by(Poem.uuid)
+    )
+    poems = result.scalars().all()
 
     poems_payload = []
     comments_payload = []
@@ -153,7 +162,6 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
             "created_at": poem.created_at.isoformat(),
             "updated_at": poem.updated_at.isoformat()
         })
-
         for comment in poem.comments:
             comments_payload.append({
                 "poem_uuid": poem.uuid,
@@ -169,13 +177,11 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
             "total": len(poems_payload),
             "exported_at": datetime.now().isoformat()
         }, ensure_ascii=False, indent=2))
-
         zipf.writestr("comments.json", json.dumps({
             "comments": comments_payload,
             "total": len(comments_payload),
             "exported_at": datetime.now().isoformat()
         }, ensure_ascii=False, indent=2))
-
         for poem in poems:
             if poem.image_filename:
                 image_path = os.path.join(UPLOADS_DIR, poem.image_filename)
@@ -184,12 +190,11 @@ def export_poems(admin: Admin = Depends(get_current_admin), db: Session = Depend
 
     buffer.seek(0)
     filename = f"poems-export-{datetime.now().strftime('%Y-%m-%d')}.zip"
-    headers = {"Content-Disposition": f"attachment; filename={filename}"}
-    return StreamingResponse(buffer, media_type="application/zip", headers=headers)
+    return StreamingResponse(buffer, media_type="application/zip",
+                             headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 @router.post("/import")
-async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Import poems, images, and comments from a zip archive (admin only)"""
+async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     if not file.filename.lower().endswith(".zip"):
         raise HTTPException(400, "Invalid file format: expected .zip")
 
@@ -210,8 +215,6 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
             errors = []
             uuid_to_poem_id = {}
 
-            print(f"[Import] Starting import of {len(poems_data['poems'])} poems", file=sys.stderr)
-
             for idx, poem_data in enumerate(poems_data["poems"]):
                 try:
                     if "body" not in poem_data:
@@ -223,11 +226,10 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
                         errors.append(f"Poem #{idx + 1}: missing 'uuid' field")
                         continue
 
-                    existing_poem = db.query(Poem).filter(Poem.uuid == poem_uuid).first()
-                    if existing_poem:
-                        print(f"[Import] Poem {poem_uuid} already exists, skipping", file=sys.stderr)
+                    existing = await db.execute(select(Poem).where(Poem.uuid == poem_uuid))
+                    if existing.scalar_one_or_none():
                         errors.append(f"Poem #{idx + 1}: uuid already exists")
-                        uuid_to_poem_id[poem_uuid] = existing_poem.id
+                        uuid_to_poem_id[poem_uuid] = existing.scalar_one_or_none().id if existing.scalar_one_or_none() else None
                         continue
 
                     poem = Poem(
@@ -235,99 +237,65 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
                         title=poem_data.get("title", ""),
                         body=poem_data["body"],
                         is_draft=bool(poem_data.get("is_draft", 0)),
-                        created_at=datetime.fromisoformat(poem_data.get("created_at")) if poem_data.get("created_at") else datetime.utcnow(),
-                        updated_at=datetime.fromisoformat(poem_data.get("updated_at")) if poem_data.get("updated_at") else datetime.utcnow()
+                        created_at=datetime.fromisoformat(poem_data["created_at"]) if poem_data.get("created_at") else datetime.utcnow(),
+                        updated_at=datetime.fromisoformat(poem_data["updated_at"]) if poem_data.get("updated_at") else datetime.utcnow(),
                     )
 
-                    if "tags" in poem_data and isinstance(poem_data["tags"], list):
-                        for tag_name in poem_data["tags"]:
-                            tag_name = tag_name.strip().lower()
-                            if tag_name:
-                                tag = db.query(Tag).filter(Tag.name == tag_name).first()
-                                if not tag:
-                                    tag = Tag(name=tag_name)
-                                    db.add(tag)
-                                    db.flush()
-                                poem.tags.append(tag)
+                    for tag_name in poem_data.get("tags", []):
+                        tag_name = tag_name.strip().lower()
+                        if tag_name:
+                            poem.tags.append(await _get_or_create_tag(db, tag_name))
 
                     image_filename = poem_data.get("image_filename")
                     if image_filename:
                         image_entry = f"images/{image_filename}"
                         if image_entry in zipf.namelist():
-                            try:
-                                ext = os.path.splitext(image_filename)[1].lower()
-                                if ext in (".jpg", ".jpeg", ".png"):
-                                    target_filename = f"{poem.uuid}{'.png' if ext == '.png' else '.jpg'}"
-                                    os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-                                    with zipf.open(image_entry) as img_file:
-                                        image_bytes = img_file.read()
-
-                                    if len(image_bytes) > MAX_IMAGE_SIZE:
-                                        print(f"[Import] Image for poem {poem_uuid} too large, skipping", file=sys.stderr)
-                                        errors.append(f"Poem #{idx + 1}: image too large")
-                                    else:
-                                        file_path = os.path.join(UPLOADS_DIR, target_filename)
-                                        with open(file_path, "wb") as out:
-                                            out.write(image_bytes)
-                                        poem.image_filename = target_filename
-                                        print(f"[Import] Imported image for poem {poem_uuid}: {target_filename}", file=sys.stderr)
-                            except Exception as e:
-                                print(f"[Import] Error importing image for poem {poem_uuid}: {str(e)}", file=sys.stderr)
-                                errors.append(f"Poem #{idx + 1}: image import error: {str(e)}")
+                            ext = os.path.splitext(image_filename)[1].lower()
+                            if ext in (".jpg", ".jpeg", ".png"):
+                                target = f"{poem.uuid}{'.png' if ext == '.png' else '.jpg'}"
+                                os.makedirs(UPLOADS_DIR, exist_ok=True)
+                                image_bytes = zipf.read(image_entry)
+                                if len(image_bytes) <= MAX_IMAGE_SIZE:
+                                    with open(os.path.join(UPLOADS_DIR, target), "wb") as f:
+                                        f.write(image_bytes)
+                                    poem.image_filename = target
 
                     db.add(poem)
-                    db.flush()
+                    await db.flush()
                     uuid_to_poem_id[poem_uuid] = poem.id
                     imported_poems += 1
-                    print(f"[Import] Imported poem {poem_uuid}", file=sys.stderr)
 
                 except Exception as e:
-                    print(f"[Import] Error importing poem #{idx + 1}: {str(e)}", file=sys.stderr)
                     errors.append(f"Poem #{idx + 1}: {str(e)}")
 
             if "comments.json" in zipf.namelist():
                 try:
                     comments_data = json.loads(zipf.read("comments.json").decode("utf-8"))
-                    if "comments" in comments_data and isinstance(comments_data["comments"], list):
-                        for idx, comment_data in enumerate(comments_data["comments"]):
-                            try:
-                                poem_uuid = comment_data.get("poem_uuid")
-                                if not poem_uuid:
-                                    errors.append(f"Comment #{idx + 1}: missing 'poem_uuid' field")
-                                    continue
-
-                                if poem_uuid not in uuid_to_poem_id:
-                                    print(f"[Import] Poem {poem_uuid} not found for comment, skipping", file=sys.stderr)
-                                    errors.append(f"Comment #{idx + 1}: poem with uuid {poem_uuid} not found")
-                                    continue
-
-                                if "body" not in comment_data:
-                                    errors.append(f"Comment #{idx + 1}: missing 'body' field")
-                                    continue
-
-                                comment = Comment(
-                                    poem_id=uuid_to_poem_id[poem_uuid],
-                                    author=comment_data.get("author", "Anonymous"),
-                                    body=comment_data["body"],
-                                    created_at=datetime.fromisoformat(comment_data.get("created_at")) if comment_data.get("created_at") else datetime.utcnow()
-                                )
-                                db.add(comment)
-                                imported_comments += 1
-
-                            except Exception as e:
-                                print(f"[Import] Error importing comment #{idx + 1}: {str(e)}", file=sys.stderr)
-                                errors.append(f"Comment #{idx + 1}: {str(e)}")
+                    for idx, cd in enumerate(comments_data.get("comments", [])):
+                        try:
+                            puuid = cd.get("poem_uuid")
+                            if not puuid or puuid not in uuid_to_poem_id:
+                                errors.append(f"Comment #{idx + 1}: poem not found")
+                                continue
+                            if "body" not in cd:
+                                errors.append(f"Comment #{idx + 1}: missing body")
+                                continue
+                            db.add(Comment(
+                                poem_id=uuid_to_poem_id[puuid],
+                                author=cd.get("author", "Anonymous"),
+                                body=cd["body"],
+                                created_at=datetime.fromisoformat(cd["created_at"]) if cd.get("created_at") else datetime.utcnow(),
+                            ))
+                            imported_comments += 1
+                        except Exception as e:
+                            errors.append(f"Comment #{idx + 1}: {str(e)}")
                 except Exception as e:
-                    print(f"[Import] Error importing comments: {str(e)}", file=sys.stderr)
                     errors.append(f"Failed to import comments: {str(e)}")
 
             try:
-                db.commit()
-                print(f"[Import] Successfully imported {imported_poems} poems and {imported_comments} comments", file=sys.stderr)
+                await db.commit()
             except Exception as e:
-                db.rollback()
-                print(f"[Import] Database commit error: {str(e)}", file=sys.stderr)
+                await db.rollback()
                 raise HTTPException(500, f"Failed to save data: {str(e)}")
 
             return {
@@ -336,6 +304,7 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
                 "errors": errors,
                 "total_poems_attempted": len(poems_data["poems"])
             }
+
     except zipfile.BadZipFile:
         raise HTTPException(400, "Invalid zip archive")
     except HTTPException:
@@ -346,56 +315,47 @@ async def import_poems(file: UploadFile = File(...), admin: Admin = Depends(get_
 
 # ====== PARAMETRIZED ROUTES ======
 @router.get("/{poem_id}")
-def get_poem(poem_id: int, db: Session = Depends(get_db)):
-    """Get a specific poem"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def get_poem(poem_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Poem).options(selectinload(Poem.tags)).where(Poem.id == poem_id)
+    )
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
     return _poem_to_dict(poem)
 
 @router.post("", status_code=201)
-def create_poem(data: PoemIn, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Create a new poem"""
+async def create_poem(data: PoemIn, admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     poem = Poem(title=data.title, body=data.body, is_draft=bool(data.is_draft))
-
     for tag_name in data.tags:
         tag_name = tag_name.strip().lower()
         if tag_name:
-            tag = db.query(Tag).filter(Tag.name == tag_name).first()
-            if not tag:
-                tag = Tag(name=tag_name)
-                db.add(tag)
-                db.flush()
-            poem.tags.append(tag)
-
+            poem.tags.append(await _get_or_create_tag(db, tag_name))
     db.add(poem)
-    db.commit()
-    db.refresh(poem)
-    return _poem_to_dict(poem)
+    await db.commit()
+    await db.refresh(poem)
+    result = await db.execute(select(Poem).options(selectinload(Poem.tags)).where(Poem.id == poem.id))
+    return _poem_to_dict(result.scalar_one())
 
 @router.put("/{poem_id}")
-def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Update a poem and create a new version"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Poem).options(selectinload(Poem.tags)).where(Poem.id == poem_id)
+    )
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
 
-    # Get current version number to create next version
-    last_version = db.query(PoemVersion).filter(PoemVersion.poem_id == poem_id).order_by(PoemVersion.version_number.desc()).first()
-    next_version_number = (last_version.version_number + 1) if last_version else 1
-
-    # Create version from current poem state before updating
-    version = PoemVersion(
-        poem_id=poem_id,
-        version_number=next_version_number,
-        title=poem.title,
-        body=poem.body,
-        image_filename=poem.image_filename
+    last_v = await db.execute(
+        select(PoemVersion).where(PoemVersion.poem_id == poem_id).order_by(desc(PoemVersion.version_number))
     )
-    db.add(version)
-    db.flush()
+    last_version = last_v.scalars().first()
+    next_v = (last_version.version_number + 1) if last_version else 1
 
-    # Update poem
+    db.add(PoemVersion(poem_id=poem_id, version_number=next_v,
+                       title=poem.title, body=poem.body, image_filename=poem.image_filename))
+    await db.flush()
+
     if data.title is not None:
         poem.title = data.title
     if data.body is not None:
@@ -408,181 +368,134 @@ def update_poem(poem_id: int, data: PoemUpdate, admin: Admin = Depends(get_curre
         for tag_name in data.tags:
             tag_name = tag_name.strip().lower()
             if tag_name:
-                tag = db.query(Tag).filter(Tag.name == tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                    db.add(tag)
-                    db.flush()
-                poem.tags.append(tag)
+                poem.tags.append(await _get_or_create_tag(db, tag_name))
 
-    db.commit()
-    db.refresh(poem)
-    return _poem_to_dict(poem)
+    await db.commit()
+    result = await db.execute(select(Poem).options(selectinload(Poem.tags)).where(Poem.id == poem_id))
+    return _poem_to_dict(result.scalar_one())
 
 @router.post("/{poem_id}/image")
-async def upload_poem_image(poem_id: int, file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Upload or replace a poem image (admin only)"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def upload_poem_image(poem_id: int, file: UploadFile = File(...), admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).where(Poem.id == poem_id))
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
-
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(400, "Invalid image type. Only JPG and PNG are allowed")
-
     content = await file.read()
     if len(content) > MAX_IMAGE_SIZE:
         raise HTTPException(400, "Image is too large. Max size is 1MB")
-
     os.makedirs(UPLOADS_DIR, exist_ok=True)
-
     ext = ALLOWED_IMAGE_TYPES[file.content_type]
     filename = f"{poem.uuid}{ext}"
-    file_path = os.path.join(UPLOADS_DIR, filename)
-
     if poem.image_filename and poem.image_filename != filename:
         old_path = os.path.join(UPLOADS_DIR, poem.image_filename)
         if os.path.exists(old_path):
             os.remove(old_path)
-
-    with open(file_path, "wb") as out:
+    with open(os.path.join(UPLOADS_DIR, filename), "wb") as out:
         out.write(content)
-
     poem.image_filename = filename
-    db.commit()
-    db.refresh(poem)
-
+    await db.commit()
+    await db.refresh(poem)
     return {"ok": True, "image_url": _image_url(poem)}
 
 @router.delete("/{poem_id}/image")
-def delete_poem_image(poem_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Delete a poem image (admin only)"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def delete_poem_image(poem_id: int, admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).where(Poem.id == poem_id))
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
-
     if poem.image_filename:
-        image_path = os.path.join(UPLOADS_DIR, poem.image_filename)
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        path = os.path.join(UPLOADS_DIR, poem.image_filename)
+        if os.path.exists(path):
+            os.remove(path)
         poem.image_filename = None
-        db.commit()
-
+        await db.commit()
     return {"ok": True}
-
-
 
 # ====== VERSIONS ======
 @router.get("/{poem_id}/versions")
-def get_poem_versions(poem_id: int, db: Session = Depends(get_db)):
-    """Get version history for a poem"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def get_poem_versions(poem_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).where(Poem.id == poem_id))
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
-
-    versions = db.query(PoemVersion).filter(PoemVersion.poem_id == poem_id).order_by(PoemVersion.version_number.desc()).all()
-
+    v_result = await db.execute(
+        select(PoemVersion).where(PoemVersion.poem_id == poem_id).order_by(desc(PoemVersion.version_number))
+    )
+    versions = v_result.scalars().all()
     return {
         "poem_id": poem_id,
         "current_version": {
             "version_number": len(versions) + 1,
-            "title": poem.title,
-            "body": poem.body,
+            "title": poem.title, "body": poem.body,
             "image_filename": poem.image_filename,
-            "created_at": poem.updated_at.isoformat(),
-            "is_current": True
+            "created_at": poem.updated_at.isoformat(), "is_current": True
         },
         "history": [
-            {
-                "version_number": v.version_number,
-                "title": v.title,
-                "body": v.body,
-                "image_filename": v.image_filename,
-                "created_at": v.created_at.isoformat(),
-                "is_current": False
-            }
+            {"version_number": v.version_number, "title": v.title, "body": v.body,
+             "image_filename": v.image_filename, "created_at": v.created_at.isoformat(), "is_current": False}
             for v in versions
         ]
     }
 
 @router.get("/{poem_id}/versions/{version_number}")
-def get_poem_version(poem_id: int, version_number: int, db: Session = Depends(get_db)):
-    """Get a specific version of a poem"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
-    if not poem:
+async def get_poem_version(poem_id: int, version_number: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).where(Poem.id == poem_id))
+    if not result.scalar_one_or_none():
         raise HTTPException(404, "Poem not found")
-
-    version = db.query(PoemVersion).filter(
-        PoemVersion.poem_id == poem_id,
-        PoemVersion.version_number == version_number
-    ).first()
-
+    v_result = await db.execute(
+        select(PoemVersion).where(PoemVersion.poem_id == poem_id, PoemVersion.version_number == version_number)
+    )
+    version = v_result.scalar_one_or_none()
     if not version:
         raise HTTPException(404, "Version not found")
-
     return {
-        "poem_id": poem_id,
-        "version_number": version.version_number,
-        "title": version.title,
-        "body": version.body,
-        "image_filename": version.image_filename,
-        "created_at": version.created_at.isoformat()
+        "poem_id": poem_id, "version_number": version.version_number,
+        "title": version.title, "body": version.body,
+        "image_filename": version.image_filename, "created_at": version.created_at.isoformat()
     }
 
 @router.post("/{poem_id}/restore/{version_number}")
-def restore_poem_version(poem_id: int, version_number: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Restore a poem to a previous version"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def restore_poem_version(poem_id: int, version_number: int, admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).options(selectinload(Poem.tags)).where(Poem.id == poem_id))
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
-
-    version = db.query(PoemVersion).filter(
-        PoemVersion.poem_id == poem_id,
-        PoemVersion.version_number == version_number
-    ).first()
-
+    v_result = await db.execute(
+        select(PoemVersion).where(PoemVersion.poem_id == poem_id, PoemVersion.version_number == version_number)
+    )
+    version = v_result.scalar_one_or_none()
     if not version:
         raise HTTPException(404, "Version not found")
 
-    # Create a new version from current state before restoring
-    last_version = db.query(PoemVersion).filter(PoemVersion.poem_id == poem_id).order_by(PoemVersion.version_number.desc()).first()
-    next_version_number = (last_version.version_number + 1) if last_version else 1
-
-    new_version = PoemVersion(
-        poem_id=poem_id,
-        version_number=next_version_number,
-        title=poem.title,
-        body=poem.body,
-        image_filename=poem.image_filename
+    last_v = await db.execute(
+        select(PoemVersion).where(PoemVersion.poem_id == poem_id).order_by(desc(PoemVersion.version_number))
     )
-    db.add(new_version)
-    db.flush()
+    last_version = last_v.scalars().first()
+    next_v = (last_version.version_number + 1) if last_version else 1
 
-    # Restore from old version
+    db.add(PoemVersion(poem_id=poem_id, version_number=next_v,
+                       title=poem.title, body=poem.body, image_filename=poem.image_filename))
+    await db.flush()
+
     poem.title = version.title
     poem.body = version.body
     poem.image_filename = version.image_filename
-
-    db.commit()
-    db.refresh(poem)
-
-    return {
-        "ok": True,
-        "message": f"Restored to version {version_number}",
-        "poem": _poem_to_dict(poem)
-    }
+    await db.commit()
+    result = await db.execute(select(Poem).options(selectinload(Poem.tags)).where(Poem.id == poem_id))
+    poem = result.scalar_one()
+    return {"ok": True, "message": f"Restored to version {version_number}", "poem": _poem_to_dict(poem)}
 
 @router.delete("/{poem_id}", status_code=204)
-def delete_poem(poem_id: int, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Delete a poem"""
-    poem = db.query(Poem).filter(Poem.id == poem_id).first()
+async def delete_poem(poem_id: int, admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Poem).where(Poem.id == poem_id))
+    poem = result.scalar_one_or_none()
     if not poem:
         raise HTTPException(404, "Poem not found")
-
     if poem.image_filename:
-        image_path = os.path.join(UPLOADS_DIR, poem.image_filename)
-        if os.path.exists(image_path):
-            os.remove(image_path)
-
-    db.delete(poem)
-    db.commit()
-
+        path = os.path.join(UPLOADS_DIR, poem.image_filename)
+        if os.path.exists(path):
+            os.remove(path)
+    await db.delete(poem)
+    await db.commit()

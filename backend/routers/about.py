@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
@@ -14,12 +15,11 @@ class AboutUpdate(BaseModel):
     photo_url: Optional[str] = None
 
 @router.get("")
-def get_about(db: Session = Depends(get_db)):
-    """Get about page information"""
-    about = db.query(About).filter(About.id == 1).first()
+async def get_about(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(About).where(About.id == 1))
+    about = result.scalar_one_or_none()
     if not about:
         return {}
-
     return {
         "id": about.id,
         "name": about.name,
@@ -29,9 +29,9 @@ def get_about(db: Session = Depends(get_db)):
     }
 
 @router.put("")
-def update_about(data: AboutUpdate, admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Update about page information"""
-    about = db.query(About).filter(About.id == 1).first()
+async def update_about(data: AboutUpdate, admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(About).where(About.id == 1))
+    about = result.scalar_one_or_none()
     if not about:
         about = About(id=1)
         db.add(about)
@@ -43,8 +43,8 @@ def update_about(data: AboutUpdate, admin: Admin = Depends(get_current_admin), d
     if data.photo_url is not None:
         about.photo_url = data.photo_url
 
-    db.commit()
-    db.refresh(about)
+    await db.commit()
+    await db.refresh(about)
 
     return {
         "id": about.id,
@@ -53,4 +53,3 @@ def update_about(data: AboutUpdate, admin: Admin = Depends(get_current_admin), d
         "photo_url": about.photo_url,
         "updated_at": about.updated_at.isoformat() if about.updated_at else None
     }
-

@@ -14,7 +14,7 @@ from routers import poems, about, comments, auth, webhooks
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    await init_db()
     yield
 
 app = FastAPI(title="Poetry Site API", lifespan=lifespan)
