@@ -136,6 +136,36 @@ Add this to your crontab (`crontab -e`) to reload nginx when cert renews:
 2. Log in with your credentials from `.env`
 3. Click **Admin** in the nav
 
+### Reset admin password from CLI
+
+To generate SQL for changing the password of `levgorev` from the backend environment:
+
+```bash
+cd backend
+python change_admin_password.py
+```
+
+The script will securely prompt for a new password and print a ready-to-run SQL script to stdout.
+
+You can also pass a different username explicitly:
+
+```bash
+cd backend
+python change_admin_password.py --username levgorev
+```
+
+Inside Docker Compose:
+
+```bash
+docker compose exec backend python change_admin_password.py --username levgorev
+```
+
+Then run the printed SQL in PostgreSQL, for example:
+
+```bash
+docker compose exec -T db psql -U ${POSTGRES_USER:-poetry_user} -d ${POSTGRES_DB:-poetry}
+```
+
 **Poems tab:** 
 - Add, edit, delete poems. Each poem has title (optional), body, and tags.
 - **Export Poems** (📥): Download all poems as JSON for backup or migration
