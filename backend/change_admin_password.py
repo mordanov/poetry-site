@@ -6,7 +6,7 @@ import getpass
 
 import bcrypt
 
-DEFAULT_USERNAME = "levgorev"
+DEFAULT_USERNAME = "admin"
 
 
 def sql_quote(value: str) -> str:

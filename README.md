@@ -138,7 +138,7 @@ Add this to your crontab (`crontab -e`) to reload nginx when cert renews:
 
 ### Reset admin password from CLI
 
-To generate SQL for changing the password of `levgorev` from the backend environment:
+To generate SQL for changing the password of `admin` from the backend environment:
 
 ```bash
 cd backend
@@ -151,13 +151,13 @@ You can also pass a different username explicitly:
 
 ```bash
 cd backend
-python change_admin_password.py --username levgorev
+python change_admin_password.py --username admin
 ```
 
 Inside Docker Compose:
 
 ```bash
-docker compose exec backend python change_admin_password.py --username levgorev
+docker compose exec backend python change_admin_password.py --username admin
 ```
 
 Then run the printed SQL in PostgreSQL, for example:
