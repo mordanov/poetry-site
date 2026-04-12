@@ -118,6 +118,19 @@ class Comment(Base):
         return f"<Comment(author='{self.author}', poem_id={self.poem_id})>"
 
 
+class LoginLog(Base):
+    """Login audit log - records every successful admin login"""
+    __tablename__ = "login_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(255), nullable=False, index=True)
+    ip_address = Column(String(45), nullable=True)  # 45 chars covers IPv6
+    logged_at = Column(DateTime, default=func.now(), nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<LoginLog(username='{self.username}', ip='{self.ip_address}', at={self.logged_at})>"
+
+
 class PoemVersion(Base):
     """Poem version history model - tracks all edits"""
     __tablename__ = "poem_versions"

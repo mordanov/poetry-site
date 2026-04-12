@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,7 +9,7 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from database import get_db
-from models import Admin
+from models import Admin, LoginLog
 
 router = APIRouter()
 SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-change-in-production")
@@ -60,7 +60,7 @@ class PasswordChange(BaseModel):
     new_password: str
 
 @router.post("/login")
-async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Admin).where(Admin.username == form.username))
     admin = result.scalar_one_or_none()
     if not admin:
@@ -68,6 +68,9 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
     if not bcrypt.checkpw(form.password.encode(), admin.password_hash.encode()):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_token(admin.username)
+    ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or (request.client.host if request.client else None)
+    db.add(LoginLog(username=admin.username, ip_address=ip))
+    await db.commit()
     return {"access_token": token, "token_type": "bearer"}
 
 @router.get("/me")
