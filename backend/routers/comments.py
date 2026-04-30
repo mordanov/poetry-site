@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
@@ -16,7 +17,9 @@ class CommentIn(BaseModel):
 @router.get("/admin/all")
 async def get_all_comments(admin: Admin = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Comment).join(Poem).order_by(desc(Comment.created_at))
+        select(Comment)
+        .options(selectinload(Comment.poem))
+        .order_by(desc(Comment.created_at))
     )
     comments = result.scalars().all()
     return [

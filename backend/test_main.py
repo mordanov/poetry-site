@@ -1,5 +1,6 @@
 """Unit tests for backend API endpoints"""
 import os
+import bcrypt
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -48,6 +49,17 @@ async def db_session():
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def admin_token(client, db_session):
+    password = "secret123"
+    db_session.add(Admin(username="admin", password_hash=bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()))
+    await db_session.commit()
+
+    response = await client.post("/api/auth/login", data={"username": "admin", "password": password})
+    assert response.status_code == 200
+    return response.json()["access_token"]
 
 # ─── Health Check Tests ───────────────────────────────────────────────────────
 
@@ -175,6 +187,29 @@ async def test_comment_model_creation(db_session):
     c = result.scalar_one_or_none()
     assert c is not None
     assert c.body == "Great!"
+
+
+@pytest.mark.asyncio
+async def test_get_all_comments_for_admin(client, db_session, admin_token):
+    import uuid
+
+    poem = Poem(uuid=str(uuid.uuid4()), title="Visible Poem", body="Body", is_draft=False)
+    db_session.add(poem)
+    await db_session.flush()
+    db_session.add(Comment(poem_id=poem.id, author="Reader", body="Powerful reflection"))
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/comments/admin/all",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["poem_id"] == poem.id
+    assert data[0]["poem_uuid"] == poem.uuid
+    assert data[0]["poem_title"] == "Visible Poem"
+    assert data[0]["author"] == "Reader"
 
 # ─── Data Integrity Tests ─────────────────────────────────────────────────────
 
